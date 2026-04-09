@@ -342,7 +342,21 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
             return n;
         }
         case TOK_WHILE:     return parse_while(tokens, pos, count);
-        case TOK_WEND:      return alloc_node(NODE_COMMAND, tok->line);
+        case TOK_WEND: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_WEND;
+            return n;
+        }
+        case TOK_DO: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_DO;
+            return n;
+        }
+        case TOK_LOOP: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_LOOP;
+            return n;
+        }
         case TOK_REPEAT:    return parse_repeat(tokens, pos, count);
         case TOK_UNTIL: {
             amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);

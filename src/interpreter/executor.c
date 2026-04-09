@@ -505,7 +505,33 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
                 case TOK_WEND: {
                     /* Find matching While — walk backwards */
-                    /* For now, just loop back to beginning of current while */
+                    for (int i = state->current_line - 1; i >= 0; i--) {
+                        amos_node_t *ln = state->lines[i].ast;
+                        if (ln && ln->type == NODE_WHILE) {
+                            state->current_line = i;
+                            return;
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_DO: {
+                    /* Push loop point onto gosub stack */
+                    if (state->gosub_top < AMOS_MAX_GOSUB_DEPTH) {
+                        gosub_entry_t *ge = &state->gosub_stack[state->gosub_top++];
+                        ge->return_line = state->current_line + 1;
+                        ge->return_pos = 0;
+                    }
+                    break;
+                }
+
+                case TOK_LOOP: {
+                    /* Jump back to Do */
+                    if (state->gosub_top > 0) {
+                        gosub_entry_t *ge = &state->gosub_stack[state->gosub_top - 1];
+                        state->current_line = ge->return_line;
+                        state->current_pos = ge->return_pos;
+                    }
                     break;
                 }
 
