@@ -1,0 +1,45 @@
+Rem *** AMOS Reborn - Demo 1: Graphics Showcase ***
+Rem This demo exercises the core graphics commands
+
+Screen Open 0,320,256,5
+Palette $000,$FFF,$F00,$0F0,$00F,$FF0,$0FF,$F0F,$888,$F80,$08F,$0F8,$80F,$F08,$8F0,$F88
+
+Rem Clear screen to dark blue
+Colour 0,$006
+Cls 0
+
+Rem Draw rainbow bars
+For I=1 To 15
+  Ink I
+  Bar 10,10+I*14 To 309,10+I*14+10
+Next I
+
+Rem Draw concentric circles in white
+Ink 15
+For R=10 To 100 Step 10
+  Circle 160,128,R
+Next R
+
+Rem Draw a box frame
+Ink 14
+Box 5,5 To 314,250
+
+Rem Draw diagonal lines
+Ink 9
+Draw 5,5 To 314,250
+Draw 314,5 To 5,250
+
+Rem Title
+Ink 15,0
+Locate 8,0
+Print "AMOS Reborn - Demo 1"
+Locate 5,30
+Print "Ctrl+T: CRT presets | ESC: Quit"
+
+Rem Play a sound
+Bell
+
+Rem Main loop
+Do
+  Wait Vbl
+Loop
