@@ -183,8 +183,30 @@ int main(int argc, char *argv[])
             /* Run mode */
             amos_frame_tick(g_state);
         } else if (start_in_editor) {
-            /* Program ended — return to editor */
-            amos_editor_init(g_state);
+            /* Program ended — show output briefly, then return to editor */
+            /* Print "Press any key" and wait */
+            amos_screen_print(g_state, "\n-- Program ended. Press any key --");
+            platform_present(g_state);
+
+            /* Wait for keypress */
+            bool waiting = true;
+            while (waiting && !platform_should_quit()) {
+                SDL_Event ev;
+                while (SDL_PollEvent(&ev)) {
+                    if (ev.type == SDL_QUIT) {
+                        platform_request_quit();
+                        waiting = false;
+                    }
+                    if (ev.type == SDL_KEYDOWN || ev.type == SDL_MOUSEBUTTONDOWN) {
+                        waiting = false;
+                    }
+                }
+                SDL_Delay(16);
+            }
+
+            if (!platform_should_quit()) {
+                amos_editor_init(g_state);
+            }
         } else {
             /* Program ended, no editor — exit */
             break;

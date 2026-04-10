@@ -901,12 +901,7 @@ void amos_editor_tick(amos_state_t *state)
             case SDL_QUIT:
                 g_editor.active = false;
                 state->running = false;
-                /* Signal quit to the platform layer too */
-                {
-                    SDL_Event quit_event;
-                    quit_event.type = SDL_QUIT;
-                    SDL_PushEvent(&quit_event);
-                }
+                platform_request_quit();
                 return;
 
             case SDL_KEYDOWN:

@@ -795,6 +795,7 @@ void crt_shutdown(void);
 int  platform_init(amos_state_t *state, int width, int height, const char *title);
 void platform_shutdown(void);
 bool platform_should_quit(void);
+void platform_request_quit(void);
 void platform_poll_events(amos_state_t *state);
 void platform_present(amos_state_t *state);
 uint32_t platform_get_ticks(void);

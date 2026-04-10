@@ -159,6 +159,11 @@ bool platform_should_quit(void)
     return g_quit;
 }
 
+void platform_request_quit(void)
+{
+    g_quit = true;
+}
+
 void platform_poll_events(amos_state_t *state)
 {
     SDL_Event event;
