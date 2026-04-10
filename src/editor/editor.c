@@ -618,17 +618,25 @@ static void editor_execute_direct(amos_state_t *state)
 static void editor_run_program(amos_state_t *state)
 {
     char *source = editor_build_source();
+    if (!source || source[0] == '\0') {
+        free(source);
+        snprintf(g_editor.status_msg, sizeof(g_editor.status_msg), "Nothing to run");
+        g_editor.status_timer = 50;
+        return;
+    }
     fprintf(stderr, "[Editor] Running program (%d lines)\n", g_editor.line_count);
+
+    /* Reset interpreter state before loading new program */
+    amos_reset(state);
+
+    /* Re-open screen with default settings for the program */
+    amos_screen_open(state, 0, 320, 256, 5);
 
     amos_load_text(state, source);
     free(source);
 
     /* Switch to run mode */
     g_editor.active = false;
-
-    /* Re-open screen with default settings for the program */
-    amos_screen_open(state, 0, 320, 256, 5);
-
     amos_run(state);
 }
 

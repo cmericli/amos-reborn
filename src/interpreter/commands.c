@@ -94,9 +94,23 @@ void amos_reset(amos_state_t *state)
     for (int i = 0; i < state->var_count; i++) {
         if (state->variables[i].type == VAR_STRING && state->variables[i].sval.data) {
             free(state->variables[i].sval.data);
+            state->variables[i].sval.data = NULL;
         }
     }
     state->var_count = 0;
+
+    /* Clear arrays */
+    for (int i = 0; i < state->array_count; i++) {
+        free(state->arrays[i].data);
+        state->arrays[i].data = NULL;
+    }
+    state->array_count = 0;
+
+    /* Reset error handling */
+    state->on_error_line = -1;
+    state->trap_mode = false;
+    state->last_error = 0;
+    state->last_error_line = 0;
 }
 
 /* ── Program Loading ─────────────────────────────────────────────── */

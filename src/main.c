@@ -182,8 +182,11 @@ int main(int argc, char *argv[])
         } else if (g_state->running) {
             /* Run mode */
             amos_frame_tick(g_state);
+        } else if (start_in_editor) {
+            /* Program ended — return to editor */
+            amos_editor_init(g_state);
         } else {
-            /* Program ended or idle */
+            /* Program ended, no editor — exit */
             break;
         }
 
