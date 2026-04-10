@@ -79,14 +79,17 @@ void amos_frame_tick(amos_state_t *state)
         }
     }
 
-    /* 3. Update timer (50ths of a second, PAL style) */
+    /* 3. Tick AMAL engine (one frame of animation per channel) */
+    amos_amal_tick(state);
+
+    /* 4. Update timer (50ths of a second, PAL style) */
     static uint32_t last_ticks = 0;
     uint32_t now = platform_get_ticks();
     if (last_ticks == 0) last_ticks = now;
     state->timer += (now - last_ticks) * 50 / 1000;
     last_ticks = now;
 
-    /* 4. Present display */
+    /* 5. Present display */
     platform_present(state);
 }
 

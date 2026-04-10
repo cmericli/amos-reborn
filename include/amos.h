@@ -14,9 +14,9 @@
 /* ── Version ─────────────────────────────────────────────────────── */
 
 #define AMOS_VERSION_MAJOR 0
-#define AMOS_VERSION_MINOR 2
+#define AMOS_VERSION_MINOR 3
 #define AMOS_VERSION_PATCH 0
-#define AMOS_VERSION_STRING "0.2.0"
+#define AMOS_VERSION_STRING "0.3.0"
 
 /* ── Limits ──────────────────────────────────────────────────────── */
 
@@ -391,6 +391,20 @@ typedef struct {
     int screen_id;              /* which screen this bob belongs to */
 } amos_bob_t;
 
+/* ── Envelope (per-channel volume control) ──────────────────────── */
+
+typedef struct {
+    bool   active;
+    int    phase;           /* current envelope segment index (pairs) */
+    int    frame_counter;   /* frames remaining in current segment */
+    double current_vol;     /* current volume (0-64) */
+    double delta;           /* volume change per frame */
+    double target_vol;      /* target volume for current segment */
+    /* Envelope definition: pairs of (duration, target_volume), terminated by 0,0 */
+    int    definition[32];  /* max 16 segments x 2 values */
+    int    def_length;      /* number of values in definition */
+} envelope_t;
+
 /* ── Paula Channel ───────────────────────────────────────────────── */
 
 typedef struct {
@@ -402,6 +416,7 @@ typedef struct {
     uint8_t  volume;            /* 0-64 */
     double   position;          /* fractional sample position */
     bool     active;
+    envelope_t envelope;        /* per-channel envelope state */
 } paula_channel_t;
 
 #define PAULA_PAL_CLOCK 3546895
@@ -412,6 +427,7 @@ typedef struct {
     double  filter_state_l;     /* Butterworth state */
     double  filter_state_r;
     int     output_rate;        /* host sample rate */
+    double  envelope_counter;   /* fractional sample counter for 50Hz envelope */
 } paula_t;
 
 /* ── Memory Bank ─────────────────────────────────────────────────── */
@@ -534,6 +550,7 @@ typedef struct {
 
     /* AMAL */
     amal_channel_t amal[AMOS_MAX_AMAL_CHANNELS];
+    int amal_global_regs[26];   /* RA-RZ shared AMAL registers */
     bool synchro;               /* SYNCHRO mode (wait for VBL) */
 
     /* Display */
@@ -544,6 +561,15 @@ typedef struct {
     /* Timing */
     uint32_t timer;             /* AMOS timer (50ths of a second) */
     double frame_time;          /* time of last frame */
+
+    /* Input state */
+    int last_key;                /* ASCII of last key pressed (cleared after read) */
+    int last_scancode;           /* SDL scancode of last key */
+    int shift_state;             /* Modifier state bitmask */
+    int mouse_x, mouse_y;       /* Current mouse position */
+    int mouse_buttons;           /* Current button state */
+    int mouse_click;             /* Buttons clicked since last check */
+    bool key_states[512];        /* Per-key state (indexed by SDL_SCANCODE) */
 
     /* Error state */
     int error_code;
@@ -561,6 +587,11 @@ void          amos_reset(amos_state_t *state);
 
 int  amos_load_text(amos_state_t *state, const char *source);
 int  amos_load_file(amos_state_t *state, const char *path);
+
+/* ── API: .AMOS Tokenized File Loader ────────────────────────────── */
+
+int   amos_load_amos_file(amos_state_t *state, const char *path);
+char *amos_detokenize(const uint8_t *data, size_t length);
 
 /* ── API: Execution ──────────────────────────────────────────────── */
 
@@ -616,6 +647,14 @@ void amos_screen_ink(amos_state_t *state, int pen, int paper, int outline);
 void amos_screen_colour(amos_state_t *state, int index, uint32_t rgb);
 void amos_screen_palette(amos_state_t *state, uint32_t *colors, int count);
 
+/* ── API: IFF/ILBM Loader ────────────────────────────────────────── */
+
+int  amos_load_iff(amos_state_t *state, const char *path);
+int  amos_load_iff_to_screen(amos_state_t *state, const char *path, int screen_id);
+int  amos_load_iff_from_memory(amos_state_t *state, const uint8_t *data,
+                                size_t size, int screen_id);
+void amos_exec_load_iff(amos_state_t *state, const char *filename, int screen_id);
+
 /* ── API: Audio ──────────────────────────────────────────────────── */
 
 void amos_paula_init(paula_t *paula, int output_rate);
@@ -624,6 +663,32 @@ void amos_boom(amos_state_t *state);
 void amos_shoot(amos_state_t *state);
 void amos_bell(amos_state_t *state);
 void amos_sam_play(amos_state_t *state, int channel, int sample_id);
+
+/* ── API: Envelope ──────────────────────────────────────────────────── */
+
+void amos_envelope_init(envelope_t *env, const int *definition, int def_length);
+void amos_envelope_tick(envelope_t *env);
+
+/* ── API: Tracker (MOD playback) ────────────────────────────────────── */
+
+void amos_tracker_init(amos_state_t *state);
+void amos_tracker_shutdown(amos_state_t *state);
+void amos_track_play(amos_state_t *state, const char *filename);
+void amos_track_stop(amos_state_t *state);
+void amos_track_loop_on(amos_state_t *state);
+void amos_track_loop_off(amos_state_t *state);
+void amos_tracker_mix(amos_state_t *state, int16_t *buffer, int frames);
+
+/* ── API: AMAL Engine ────────────────────────────────────────────── */
+
+int  amos_amal_compile(amos_state_t *state, int channel, const char *program);
+void amos_amal_tick(amos_state_t *state);
+void amos_amal_on(amos_state_t *state, int channel);
+void amos_amal_off(amos_state_t *state, int channel);
+void amos_amal_freeze(amos_state_t *state, int channel);
+void amos_amal_synchro(amos_state_t *state);
+int  amos_amreg(amos_state_t *state, int reg);
+void amos_amreg_set(amos_state_t *state, int reg, int value);
 
 /* ── API: CRT Shaders ────────────────────────────────────────────── */
 
@@ -657,6 +722,19 @@ int  amos_bob_col(amos_state_t *state, int id);
 /* ── Compositor ──────────────────────────────────────────────────── */
 
 void compositor_render(amos_state_t *state, uint32_t *output, int out_w, int out_h);
+
+/* ── API: Input ─────────────────────────────────────────────────────── */
+
+int         amos_inkey(amos_state_t *state);
+const char *amos_inkey_str(amos_state_t *state);
+int         amos_key_state(amos_state_t *state, int scancode);
+int         amos_scancode(amos_state_t *state);
+int         amos_scanshift(amos_state_t *state);
+int         amos_x_mouse(amos_state_t *state);
+int         amos_y_mouse(amos_state_t *state);
+int         amos_mouse_key(amos_state_t *state);
+int         amos_mouse_click(amos_state_t *state);
+int         amos_joy(amos_state_t *state, int port);
 
 /* ── Pixel Packing (little-endian safe for GL_RGBA GL_UNSIGNED_BYTE) ── */
 

@@ -168,7 +168,22 @@ void platform_poll_events(amos_state_t *state)
                 g_quit = true;
                 break;
 
-            case SDL_KEYDOWN:
+            case SDL_KEYDOWN: {
+                int sc = event.key.keysym.scancode;
+                if (sc >= 0 && sc < 512)
+                    state->key_states[sc] = true;
+                state->last_scancode = sc;
+
+                /* Store ASCII key code if printable */
+                if (event.key.keysym.sym >= 0 && event.key.keysym.sym < 128)
+                    state->last_key = (int)event.key.keysym.sym;
+
+                /* Update modifier state bitmask */
+                state->shift_state = 0;
+                if (event.key.keysym.mod & KMOD_SHIFT) state->shift_state |= 1;
+                if (event.key.keysym.mod & KMOD_CTRL)  state->shift_state |= 2;
+                if (event.key.keysym.mod & KMOD_ALT)   state->shift_state |= 4;
+
                 /* Ctrl+T: cycle CRT preset */
                 if (event.key.keysym.sym == SDLK_t &&
                     (event.key.keysym.mod & KMOD_CTRL)) {
@@ -182,6 +197,51 @@ void platform_poll_events(amos_state_t *state)
                     state->running = false;
                 }
                 break;
+            }
+
+            case SDL_KEYUP: {
+                int sc = event.key.keysym.scancode;
+                if (sc >= 0 && sc < 512)
+                    state->key_states[sc] = false;
+
+                /* Update modifier state on release too */
+                state->shift_state = 0;
+                if (event.key.keysym.mod & KMOD_SHIFT) state->shift_state |= 1;
+                if (event.key.keysym.mod & KMOD_CTRL)  state->shift_state |= 2;
+                if (event.key.keysym.mod & KMOD_ALT)   state->shift_state |= 4;
+                break;
+            }
+
+            case SDL_MOUSEMOTION: {
+                /* Scale window coordinates to AMOS screen resolution */
+                amos_screen_t *scr = &state->screens[state->current_screen];
+                int scr_w = scr->active ? scr->width : 320;
+                int scr_h = scr->active ? scr->height : 256;
+                int win_w, win_h;
+                SDL_GetWindowSize(g_window, &win_w, &win_h);
+                state->mouse_x = event.motion.x * scr_w / (win_w > 0 ? win_w : 1);
+                state->mouse_y = event.motion.y * scr_h / (win_h > 0 ? win_h : 1);
+                break;
+            }
+
+            case SDL_MOUSEBUTTONDOWN: {
+                int bit = 0;
+                if (event.button.button == SDL_BUTTON_LEFT)   bit = 1;
+                if (event.button.button == SDL_BUTTON_RIGHT)  bit = 2;
+                if (event.button.button == SDL_BUTTON_MIDDLE) bit = 4;
+                state->mouse_buttons |= bit;
+                state->mouse_click |= bit;
+                break;
+            }
+
+            case SDL_MOUSEBUTTONUP: {
+                int bit = 0;
+                if (event.button.button == SDL_BUTTON_LEFT)   bit = 1;
+                if (event.button.button == SDL_BUTTON_RIGHT)  bit = 2;
+                if (event.button.button == SDL_BUTTON_MIDDLE) bit = 4;
+                state->mouse_buttons &= ~bit;
+                break;
+            }
 
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {

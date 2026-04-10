@@ -4,11 +4,14 @@
  * 4-channel DMA audio with period registers, per-channel volume (0-64),
  * and the characteristic Amiga stereo assignment (ch 0+3 left, 1+2 right).
  * Includes optional low-pass Butterworth filter (A500: 4.4kHz).
+ * Envelope processing at 50Hz (PAL VBL rate).
  */
 
 #include "amos.h"
 #include <string.h>
 #include <math.h>
+
+#define ENVELOPE_RATE 50  /* PAL: 50 Hz VBL rate */
 
 void amos_paula_init(paula_t *paula, int output_rate)
 {
@@ -17,6 +20,7 @@ void amos_paula_init(paula_t *paula, int output_rate)
     paula->filter_enabled = true;   /* A500 filter on by default */
     paula->filter_state_l = 0.0;
     paula->filter_state_r = 0.0;
+    paula->envelope_counter = 0.0;
 }
 
 /* ── Low-pass filter (single-pole IIR, approximating Amiga RC filter) ── */
@@ -30,11 +34,36 @@ static double lowpass(double input, double *state, double cutoff, double sample_
     return *state;
 }
 
+/* ── Process envelopes for all channels ────────────────────────────── */
+
+static void process_envelopes(paula_t *paula)
+{
+    for (int ch = 0; ch < 4; ch++) {
+        paula_channel_t *c = &paula->channels[ch];
+        if (c->envelope.active) {
+            amos_envelope_tick(&c->envelope);
+            /* Apply envelope volume to channel */
+            int vol = (int)(c->envelope.current_vol + 0.5);
+            if (vol < 0) vol = 0;
+            if (vol > 64) vol = 64;
+            c->volume = (uint8_t)vol;
+
+            /* If envelope has finished and volume is 0, deactivate channel */
+            if (!c->envelope.active && vol == 0) {
+                c->active = false;
+            }
+        }
+    }
+}
+
 /* ── Mix all 4 channels into stereo output ───────────────────────── */
 
 void amos_paula_mix(paula_t *paula, int16_t *buffer, int frames)
 {
     double step[4] = {0};
+
+    /* Samples between each envelope tick */
+    double samples_per_envelope = (double)paula->output_rate / (double)ENVELOPE_RATE;
 
     /* Calculate playback step for each channel */
     for (int ch = 0; ch < 4; ch++) {
@@ -46,6 +75,24 @@ void amos_paula_mix(paula_t *paula, int16_t *buffer, int frames)
     }
 
     for (int i = 0; i < frames; i++) {
+        /* Process envelopes at 50Hz */
+        paula->envelope_counter += 1.0;
+        if (paula->envelope_counter >= samples_per_envelope) {
+            paula->envelope_counter -= samples_per_envelope;
+            process_envelopes(paula);
+
+            /* Recalculate steps in case envelope deactivated a channel */
+            for (int ch = 0; ch < 4; ch++) {
+                paula_channel_t *c = &paula->channels[ch];
+                if (c->active && c->period > 0 && c->sample_data && c->sample_length > 0) {
+                    double freq = (double)PAULA_PAL_CLOCK / (double)(c->period * 2);
+                    step[ch] = freq / (double)paula->output_rate;
+                } else {
+                    step[ch] = 0;
+                }
+            }
+        }
+
         double left = 0.0, right = 0.0;
 
         for (int ch = 0; ch < 4; ch++) {

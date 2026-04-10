@@ -1,0 +1,35 @@
+Screen Open 0,320,256,5
+Palette $000,$FFF,$F00,$0F0,$00F,$FF0,$0FF,$F0F
+PX=160
+PY=128
+COL=2
+Do
+  Cls 0
+  Ink 1,0
+  Locate 0,0
+  Print "Mouse: ";X Mouse;",";Y Mouse;" Btn:";Mouse Key
+  Locate 0,1
+  Print "Key: ";Scancode;" Joy:";Joy(1)
+
+  J=Joy(1)
+  If J And 1 Then PY=PY-2
+  If J And 2 Then PY=PY+2
+  If J And 4 Then PX=PX-2
+  If J And 8 Then PX=PX+2
+
+  If PX<0 Then PX=0
+  If PX>319 Then PX=319
+  If PY<0 Then PY=0
+  If PY>255 Then PY=255
+
+  If Mouse Click>0 Then COL=COL+1
+  If COL>7 Then COL=2
+
+  Ink COL,0
+  Bar PX-4,PY-4 To PX+4,PY+4
+
+  Ink 1,0
+  Locate 5,30
+  Print "Arrows/WASD to move, Click to change color"
+  Wait Vbl
+Loop

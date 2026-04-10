@@ -12,6 +12,7 @@ extern int test_tokenizer_all(void);
 extern int test_parser_all(void);
 extern int test_executor_all(void);
 extern int test_expressions_all(void);
+extern int test_iff_all(void);
 
 typedef struct {
     const char *name;
@@ -23,6 +24,7 @@ static test_suite_t suites[] = {
     {"Parser",      test_parser_all},
     {"Executor",    test_executor_all},
     {"Expressions", test_expressions_all},
+    {"IFF Loader",  test_iff_all},
     {NULL, NULL}
 };
 

@@ -254,6 +254,55 @@ static eval_result_t eval_function(amos_state_t *state, amos_node_t *node)
         amos_screen_t *scr = &state->screens[state->current_screen];
         result = make_int(scr->active ? scr->height : 0);
     }
+    /* ── Input functions ─────────────────────────────────────────── */
+    else if (strcasecmp(name, "Inkey$") == 0) {
+        result = make_string(amos_inkey_str(state));
+    }
+    else if (strcasecmp(name, "Key State") == 0) {
+        result = make_int(amos_key_state(state, to_int(args[0])));
+    }
+    else if (strcasecmp(name, "Scancode") == 0) {
+        result = make_int(amos_scancode(state));
+    }
+    else if (strcasecmp(name, "Scanshift") == 0) {
+        result = make_int(amos_scanshift(state));
+    }
+    else if (strcasecmp(name, "X Mouse") == 0) {
+        result = make_int(amos_x_mouse(state));
+    }
+    else if (strcasecmp(name, "Y Mouse") == 0) {
+        result = make_int(amos_y_mouse(state));
+    }
+    else if (strcasecmp(name, "Mouse Key") == 0) {
+        result = make_int(amos_mouse_key(state));
+    }
+    else if (strcasecmp(name, "Mouse Click") == 0) {
+        result = make_int(amos_mouse_click(state));
+    }
+    else if (strcasecmp(name, "Joy") == 0) {
+        int port = argc > 0 ? to_int(args[0]) : 1;
+        result = make_int(amos_joy(state, port));
+    }
+    else if (strcasecmp(name, "Jleft") == 0) {
+        int port = argc > 0 ? to_int(args[0]) : 1;
+        result = make_int((amos_joy(state, port) & 4) ? -1 : 0);
+    }
+    else if (strcasecmp(name, "Jright") == 0) {
+        int port = argc > 0 ? to_int(args[0]) : 1;
+        result = make_int((amos_joy(state, port) & 8) ? -1 : 0);
+    }
+    else if (strcasecmp(name, "Jup") == 0) {
+        int port = argc > 0 ? to_int(args[0]) : 1;
+        result = make_int((amos_joy(state, port) & 1) ? -1 : 0);
+    }
+    else if (strcasecmp(name, "Jdown") == 0) {
+        int port = argc > 0 ? to_int(args[0]) : 1;
+        result = make_int((amos_joy(state, port) & 2) ? -1 : 0);
+    }
+    else if (strcasecmp(name, "Fire") == 0) {
+        int port = argc > 0 ? to_int(args[0]) : 1;
+        result = make_int((amos_joy(state, port) & 16) ? -1 : 0);
+    }
 
     /* Clean up argument strings */
     for (int i = 0; i < argc && i < 8; i++) {
@@ -980,7 +1029,17 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 }
 
                 case TOK_WAIT_KEY:
-                    /* TODO: implement key wait */
+                    /* Wait until a key is pressed */
+#ifndef AMOS_TESTING
+                    state->last_key = 0;
+                    while (state->running && state->last_key == 0) {
+                        platform_poll_events(state);
+                        if (platform_should_quit()) {
+                            state->running = false;
+                            break;
+                        }
+                    }
+#endif
                     break;
 
                 case TOK_BOOM:
@@ -993,6 +1052,25 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
                 case TOK_BELL:
                     amos_bell(state);
+                    break;
+
+                case TOK_TRACK_PLAY: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        if (r.type == VAR_STRING && r.sval) {
+                            amos_track_play(state, r.sval);
+                        }
+                        free_result(&r);
+                    }
+                    break;
+                }
+
+                case TOK_TRACK_STOP:
+                    amos_track_stop(state);
+                    break;
+
+                case TOK_TRACK_LOOP_ON:
+                    amos_track_loop_on(state);
                     break;
 
                 case TOK_VOLUME: {
@@ -1103,6 +1181,63 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     break;
                 }
 
+                case TOK_AMAL: {
+                    /* Amal channel,"program" */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch_r = eval_node(state, node->children[0]);
+                        eval_result_t pg_r = eval_node(state, node->children[1]);
+                        int ch_id = to_int(ch_r);
+                        if (pg_r.type == VAR_STRING && pg_r.sval) {
+                            amos_amal_compile(state, ch_id, pg_r.sval);
+                        }
+                        free_result(&ch_r);
+                        free_result(&pg_r);
+                    }
+                    break;
+                }
+
+                case TOK_AMAL_ON: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_amal_on(state, to_int(r));
+                        free_result(&r);
+                    } else {
+                        for (int i = 0; i < AMOS_MAX_AMAL_CHANNELS; i++) {
+                            if (state->amal[i].program)
+                                amos_amal_on(state, i);
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_AMAL_OFF: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_amal_off(state, to_int(r));
+                        free_result(&r);
+                    } else {
+                        for (int i = 0; i < AMOS_MAX_AMAL_CHANNELS; i++)
+                            amos_amal_off(state, i);
+                    }
+                    break;
+                }
+
+                case TOK_AMAL_FREEZE: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_amal_freeze(state, to_int(r));
+                        free_result(&r);
+                    } else {
+                        for (int i = 0; i < AMOS_MAX_AMAL_CHANNELS; i++)
+                            amos_amal_freeze(state, i);
+                    }
+                    break;
+                }
+
+                case TOK_SYNCHRO:
+                    amos_amal_synchro(state);
+                    break;
+
                 case TOK_ELSE: {
                     /* We reached Else during normal execution — the If-true body
                        just finished. Skip to matching End If. */
@@ -1114,6 +1249,64 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 case TOK_END_IF:
                     /* No-op — just continue to next line */
                     break;
+
+                case TOK_INPUT: {
+                    /* Basic Input command: Input "prompt";VAR$
+                     * For now, read characters one at a time via amos_inkey
+                     * until Enter is pressed. Store result in the target variable.
+                     */
+#ifndef AMOS_TESTING
+                    if (node->child_count > 0) {
+                        /* First child may be a prompt string */
+                        int var_idx = 0;
+                        if (node->child_count > 1 &&
+                            node->children[0]->type == NODE_STRING_LITERAL) {
+                            amos_screen_print(state, node->children[0]->token.sval);
+                            var_idx = 1;
+                        }
+
+                        /* Show cursor and collect input */
+                        char input_buf[256] = {0};
+                        int pos = 0;
+                        state->last_key = 0;
+
+                        while (state->running && pos < 255) {
+                            platform_poll_events(state);
+                            if (platform_should_quit()) {
+                                state->running = false;
+                                break;
+                            }
+                            int key = amos_inkey(state);
+                            if (key == 13 || key == 10) {
+                                /* Enter pressed */
+                                break;
+                            } else if (key == 8 || key == 127) {
+                                /* Backspace */
+                                if (pos > 0) pos--;
+                            } else if (key >= 32 && key < 127) {
+                                input_buf[pos++] = (char)key;
+                                char ch[2] = {(char)key, 0};
+                                amos_screen_print(state, ch);
+                            }
+                        }
+                        input_buf[pos] = '\0';
+                        amos_screen_print(state, "\n");
+
+                        /* Store result */
+                        if (var_idx < node->child_count &&
+                            node->children[var_idx]->type == NODE_VARIABLE) {
+                            const char *vname = node->children[var_idx]->token.sval;
+                            int len = (int)strlen(vname);
+                            if (len > 0 && vname[len - 1] == '$') {
+                                amos_var_set_string(state, vname, input_buf);
+                            } else {
+                                amos_var_set_int(state, vname, (int32_t)atoi(input_buf));
+                            }
+                        }
+                    }
+#endif
+                    break;
+                }
 
                 default:
                     break;

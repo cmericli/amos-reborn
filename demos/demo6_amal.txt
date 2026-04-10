@@ -1,0 +1,28 @@
+Screen Open 0,320,256,5
+Palette $000,$FFF,$F00,$0F0,$00F,$FF0,$0FF,$F0F
+
+Rem Sprite bouncing with AMAL
+Sprite 0,160,128,1
+Amal 0,"M 100,50,100;M -100,-50,100;J A"
+Amal On 0
+
+Rem Second sprite with animation
+Sprite 1,50,50,2
+Amal 1,"A 1,5;2,5;3,5;4,5;J A"
+Amal On 1
+
+Rem Third sprite circling
+Sprite 2,200,100,5
+Amal 2,"L R0=0;X=160+Z(100);Y=128+Z(80);P;J A"
+Amal On 2
+
+Do
+  Cls 0
+  Ink 1,0
+  Locate 5,0
+  Print "AMOS Reborn - AMAL Demo"
+  Locate 3,30
+  Print "3 sprites animated by AMAL engine"
+  Synchro
+  Wait Vbl
+Loop

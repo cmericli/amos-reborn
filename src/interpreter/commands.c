@@ -132,7 +132,26 @@ int amos_load_text(amos_state_t *state, const char *source)
 
 int amos_load_file(amos_state_t *state, const char *path)
 {
-    FILE *f = fopen(path, "r");
+    /* Auto-detect .AMOS tokenized files by reading the first 4 bytes */
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        snprintf(state->error_msg, sizeof(state->error_msg),
+                 "Cannot open file: %s", path);
+        state->error_code = 2;
+        return -1;
+    }
+
+    char magic[5] = {0};
+    size_t magic_read = fread(magic, 1, 4, f);
+    fclose(f);
+
+    /* Check for "AMOS" magic header */
+    if (magic_read == 4 && memcmp(magic, "AMOS", 4) == 0) {
+        return amos_load_amos_file(state, path);
+    }
+
+    /* Fall through to plain text loader */
+    f = fopen(path, "r");
     if (!f) {
         snprintf(state->error_msg, sizeof(state->error_msg),
                  "Cannot open file: %s", path);

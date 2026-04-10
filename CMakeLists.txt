@@ -47,6 +47,8 @@ set(INTERPRETER_SOURCES
     src/interpreter/expressions.c
     src/interpreter/variables.c
     src/interpreter/commands.c
+    src/interpreter/amal.c
+    src/interpreter/amos_loader.c
 )
 
 set(DISPLAY_SOURCES
@@ -56,13 +58,29 @@ set(DISPLAY_SOURCES
     src/display/crt_shader.c
     src/display/font_topaz.c
     src/display/sprites.c
+    src/display/iff_loader.c
+    src/display/iff_commands.c
 )
 
 set(AUDIO_SOURCES
     src/audio/paula.c
     src/audio/effects.c
     src/audio/mixer.c
+    src/audio/tracker.c
 )
+
+# Optional: libxmp for MOD tracker playback
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(LIBXMP libxmp)
+    if(LIBXMP_FOUND)
+        add_compile_definitions(HAVE_LIBXMP=1)
+        include_directories(${LIBXMP_INCLUDE_DIRS})
+        link_directories(${LIBXMP_LIBRARY_DIRS})
+        message(STATUS "libxmp found — MOD tracker playback enabled")
+    else()
+        message(STATUS "libxmp not found — MOD tracker playback stubbed")
+    endif()
+endif()
 
 set(HAL_SOURCES
     src/hal/hal_classic.c
@@ -72,6 +90,7 @@ set(HAL_SOURCES
 
 set(PLATFORM_SOURCES
     src/platform/platform_sdl2.c
+    src/platform/input.c
 )
 
 set(ALL_SOURCES
@@ -114,12 +133,17 @@ add_executable(amos-test
     tests/test_parser.c
     tests/test_executor.c
     tests/test_expressions.c
+    tests/test_iff.c
     ${INTERPRETER_SOURCES}
     src/display/screen.c
     src/display/font_topaz.c
     src/display/compositor.c
     src/display/sprites.c
+    src/display/iff_loader.c
+    src/display/iff_commands.c
     src/audio/paula.c
     src/audio/effects.c
+    src/audio/tracker.c
+    src/platform/input.c
 )
 target_compile_definitions(amos-test PRIVATE AMOS_TESTING=1)
