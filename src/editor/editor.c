@@ -343,7 +343,7 @@ void amos_editor_render(amos_state_t *state)
     }
 
     /* ── Cursor (blinking block — authentic AMOS style) ──── */
-    if (g_editor.cursor_visible && !g_editor.direct_mode) {
+    if (g_editor.cursor_visible && !g_editor.direct_mode && g_editor.line_count > 0) {
         int screen_row = EDITOR_CODE_TOP + (g_editor.cursor_y - g_editor.scroll_y);
         if (screen_row >= EDITOR_CODE_TOP && screen_row <= EDITOR_CODE_BOTTOM) {
             int cx = g_editor.cursor_x;
@@ -351,19 +351,30 @@ void amos_editor_render(amos_state_t *state)
             int px = cx * EDITOR_CHAR_W;
             int py = screen_row * EDITOR_CHAR_H;
 
-            /* Block cursor: cyan block with character drawn inverted */
+            /* Block cursor: bright white/cyan block */
+            uint32_t cursor_color = EDITOR_COLOR_CYAN;
             editor_fill_rect(scr, px, py,
                              px + EDITOR_CHAR_W - 1,
                              py + EDITOR_CHAR_H - 1,
-                             EDITOR_COLOR_CYAN);
-            /* Draw character under cursor in dark blue on cyan */
+                             cursor_color);
+            /* Draw character under cursor inverted */
             const char *line = g_editor.lines[g_editor.cursor_y];
             int len = (int)strlen(line);
             unsigned char ch = (g_editor.cursor_x < len)
                 ? (unsigned char)line[g_editor.cursor_x] : ' ';
             editor_draw_char(scr, px, py, ch,
-                             EDITOR_COLOR_DARK_BLUE, EDITOR_COLOR_CYAN);
+                             EDITOR_COLOR_DARK_BLUE, cursor_color);
         }
+    }
+
+    /* ── Direct mode cursor ──── */
+    if (g_editor.cursor_visible && g_editor.direct_mode) {
+        int px = (g_editor.direct_cursor + 1) * EDITOR_CHAR_W;
+        int py = EDITOR_DIRECT_ROW * EDITOR_CHAR_H;
+        editor_fill_rect(scr, px, py,
+                         px + EDITOR_CHAR_W - 1,
+                         py + EDITOR_CHAR_H - 1,
+                         EDITOR_COLOR_CYAN);
     }
 
     /* ── Direct mode bar (row 30) ──── */
@@ -383,16 +394,6 @@ void amos_editor_render(amos_state_t *state)
                              EDITOR_COLOR_ORANGE, EDITOR_COLOR_BLACK);
             px += EDITOR_CHAR_W;
         }
-    }
-
-    /* Direct mode cursor */
-    if (g_editor.cursor_visible && g_editor.direct_mode) {
-        int px = (g_editor.direct_cursor + 1) * EDITOR_CHAR_W;
-        int py = EDITOR_DIRECT_ROW * EDITOR_CHAR_H;
-        editor_fill_rect(scr, px, py,
-                         px + EDITOR_CHAR_W - 1,
-                         py + EDITOR_CHAR_H - 1,
-                         EDITOR_COLOR_CYAN);
     }
 
     /* ── Function key bar (row 31) ──── */
@@ -884,6 +885,9 @@ void amos_editor_init(amos_state_t *state)
     scr->palette[1] = EDITOR_COLOR_DARK_BLUE;
     scr->palette[2] = EDITOR_COLOR_CYAN;
     scr->palette[3] = EDITOR_COLOR_ORANGE;
+
+    /* Use clean CRT preset for editor (no shader darkening) */
+    crt_set_preset(state, CRT_PRESET_CLEAN);
 
     /* Ensure SDL text input is enabled for character events */
     SDL_StartTextInput();
