@@ -292,7 +292,11 @@ amos_token_list_t *amos_tokenize(const char *source)
                 case ';': tok.type = TOK_SEMICOLON; break;
                 case ':': tok.type = TOK_COLON; break;
                 case '#': tok.type = TOK_HASH; break;
-                case '$': tok.type = TOK_DOLLAR; break;
+                case '$':
+                    /* Check if this is a hex literal ($FFF) vs string suffix (A$) */
+                    if (isxdigit((unsigned char)p[1])) { found = false; }
+                    else { tok.type = TOK_DOLLAR; }
+                    break;
                 case '=': tok.type = TOK_EQUAL; break;
                 case '<':
                     if (p[1] == '>') { tok.type = TOK_NOT_EQUAL; p++; col++; }
