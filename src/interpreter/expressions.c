@@ -396,6 +396,27 @@ static amos_node_t *parse_primary(amos_token_t *tokens, int *pos, int count)
         return node;
     }
 
+    /* Mouse Key / Mouse Click — zero-arg functions */
+    if (tok->type == TOK_MOUSE_KEY) {
+        amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+        node->token = *tok;
+        node->token.sval = strdup("Mouse Key");
+        (*pos)++;
+        return node;
+    }
+    if (tok->type == TOK_MOUSE_CLICK) {
+        amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+        node->token = *tok;
+        node->token.sval = strdup("Mouse Click");
+        (*pos)++;
+        return node;
+    }
+
+    /* Rnd(n) as keyword token */
+    if (tok->type == TOK_REM && strcasecmp(tok->sval ? tok->sval : "", "Rnd") == 0) {
+        /* Shouldn't actually hit this; Rnd comes through as identifier */
+    }
+
     /* Screen keyword in expression context: Screen Width / Screen Height */
     if (tok->type == TOK_SCREEN) {
         if (*pos + 1 < count && tokens[*pos + 1].type == TOK_IDENTIFIER) {

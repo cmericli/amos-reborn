@@ -658,6 +658,29 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         case TOK_SET_PATTERN:
         case TOK_RESERVE_AS_WORK:
         case TOK_RESERVE_AS_DATA:
+        case TOK_GET_SPRITE_PALETTE:
+        case TOK_PASTE_BOB:
+        case TOK_CENTRE:
+        case TOK_FADE:
+        case TOK_ADD:
+        case TOK_INC:
+        case TOK_DEC:
+        case TOK_PEN:
+        case TOK_PAPER:
+        case TOK_HIDE:
+        case TOK_SHOW:
+        case TOK_FLASH_OFF:
+        case TOK_FLASH:
+        case TOK_CURS_OFF:
+        case TOK_CURS_ON:
+        case TOK_CDOWN:
+        case TOK_CUP:
+        case TOK_CLEFT:
+        case TOK_CRIGHT:
+        case TOK_SET_PAINT:
+        case TOK_APPEAR:
+        case TOK_CLINE:
+        case TOK_CLW:
             return parse_command(tokens, pos, count, tok->type);
 
         case TOK_CLIP:
@@ -734,6 +757,48 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
                 if (target) add_child(n, target);
                 if (!match(tokens, pos, count, TOK_COMMA)) break;
             }
+            return n;
+        }
+
+        /* Proc name[args] — standalone procedure call */
+        case TOK_PROC: {
+            amos_node_t *n = alloc_node(NODE_PROC_CALL, tok->line);
+            if (*pos < count && tokens[*pos].type == TOK_IDENTIFIER) {
+                n->token.sval = strdup(tokens[*pos].sval);
+                (*pos)++;
+            }
+            /* Optional arguments in parentheses or bare */
+            if (match(tokens, pos, count, TOK_LPAREN)) {
+                while (*pos < count && tokens[*pos].type != TOK_RPAREN) {
+                    amos_node_t *arg = amos_parse_expression(tokens, pos, count);
+                    if (arg) add_child(n, arg);
+                    if (!match(tokens, pos, count, TOK_COMMA)) break;
+                }
+                match(tokens, pos, count, TOK_RPAREN);
+            } else {
+                /* Bare arguments (no parens) */
+                while (!at_end(tokens, *pos, count)) {
+                    amos_node_t *arg = amos_parse_expression(tokens, pos, count);
+                    if (!arg) break;
+                    add_child(n, arg);
+                    if (!match(tokens, pos, count, TOK_COMMA)) break;
+                }
+            }
+            return n;
+        }
+
+        /* Exit If expr — conditional loop exit */
+        case TOK_EXIT_IF: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_EXIT_IF;
+            add_child(n, amos_parse_expression(tokens, pos, count));
+            return n;
+        }
+
+        /* Exit — unconditional loop exit */
+        case TOK_EXIT: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_EXIT;
             return n;
         }
 

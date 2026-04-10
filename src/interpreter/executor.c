@@ -518,6 +518,14 @@ static eval_result_t eval_function(amos_state_t *state, amos_node_t *node)
         int err_num = argc > 0 ? to_int(args[0]) : state->last_error;
         result = make_string(amos_get_error_message(err_num));
     }
+    else if (strcasecmp(name, "Errtrap") == 0) {
+        /* AMOS Pro: returns the last trapped error number */
+        result = make_int(state->last_error);
+    }
+    else if (strcasecmp(name, "Errn") == 0) {
+        /* Errn — same as Err, last error number */
+        result = make_int(state->last_error);
+    }
     /* ── File I/O Functions ─────────────────────────────────────── */
     else if (strcasecmp(name, "Eof") == 0) {
         result = make_int(amos_file_eof(state, to_int(args[0])));
@@ -933,6 +941,34 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             /* Label definition — do nothing at execution time */
             break;
 
+        case NODE_PROCEDURE: {
+            /* If we flow into a Procedure definition (not called), skip to End Proc */
+            int depth = 1;
+            for (int i = state->current_line + 1; i < state->line_count; i++) {
+                if (!state->lines[i].ast && state->lines[i].text) {
+                    amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
+                    if (tl && tl->count > 0) {
+                        int p = 0;
+                        state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
+                    }
+                    amos_token_list_free(tl);
+                }
+                amos_node_t *ln = state->lines[i].ast;
+                if (!ln) continue;
+                if (ln->type == NODE_PROCEDURE) depth++;
+                if (ln->type == NODE_COMMAND && ln->token.type == TOK_END_PROC) {
+                    depth--;
+                    if (depth == 0) {
+                        state->current_line = i + 1;
+                        return;
+                    }
+                }
+            }
+            /* No matching End Proc found — stop */
+            state->running = false;
+            break;
+        }
+
         case NODE_END:
             state->running = false;
             break;
@@ -1092,6 +1128,18 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
         case NODE_COMMAND: {
             switch (node->token.type) {
+                case TOK_END_PROC: {
+                    /* End Proc — return to caller (same as Return) */
+                    if (state->gosub_top > 0) {
+                        gosub_entry_t *ge = &state->gosub_stack[--state->gosub_top];
+                        state->current_line = ge->return_line;
+                        state->current_pos = ge->return_pos;
+                    } else {
+                        state->running = false;
+                    }
+                    break;
+                }
+
                 case TOK_NEXT: {
                     if (state->for_top <= 0) break;
                     for_entry_t *fe = &state->for_stack[state->for_top - 1];
@@ -1151,6 +1199,71 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                         gosub_entry_t *ge = &state->gosub_stack[state->gosub_top - 1];
                         state->current_line = ge->return_line;
                         state->current_pos = ge->return_pos;
+                    }
+                    break;
+                }
+
+                case TOK_EXIT: {
+                    /* Unconditional loop exit — pop Do/Loop gosub entry and
+                     * skip forward past the matching Loop/Wend/Next/Until */
+                    if (state->gosub_top > 0) {
+                        state->gosub_top--;
+                    }
+                    /* Scan forward for matching Loop/Wend/Until/Next */
+                    for (int i = state->current_line + 1; i < state->line_count; i++) {
+                        /* Lazy-parse to populate ast */
+                        if (!state->lines[i].ast && state->lines[i].text) {
+                            amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
+                            if (tl && tl->count > 0) {
+                                int p = 0;
+                                state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
+                            }
+                            amos_token_list_free(tl);
+                        }
+                        amos_node_t *ln = state->lines[i].ast;
+                        if (!ln) continue;
+                        if ((ln->type == NODE_COMMAND &&
+                             (ln->token.type == TOK_LOOP || ln->token.type == TOK_WEND ||
+                              ln->token.type == TOK_NEXT)) ||
+                            ln->type == NODE_COMMAND && ln->token.type == TOK_UNTIL) {
+                            state->current_line = i + 1;
+                            return;
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_EXIT_IF: {
+                    /* Conditional loop exit — Exit If condition */
+                    if (node->child_count > 0) {
+                        eval_result_t cond = eval_node(state, node->children[0]);
+                        bool is_true = to_int(cond) != 0;
+                        free_result(&cond);
+                        if (is_true) {
+                            /* Same as Exit — pop and skip to end of loop */
+                            if (state->gosub_top > 0) {
+                                state->gosub_top--;
+                            }
+                            for (int i = state->current_line + 1; i < state->line_count; i++) {
+                                if (!state->lines[i].ast && state->lines[i].text) {
+                                    amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
+                                    if (tl && tl->count > 0) {
+                                        int p = 0;
+                                        state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
+                                    }
+                                    amos_token_list_free(tl);
+                                }
+                                amos_node_t *ln = state->lines[i].ast;
+                                if (!ln) continue;
+                                if ((ln->type == NODE_COMMAND &&
+                                     (ln->token.type == TOK_LOOP || ln->token.type == TOK_WEND ||
+                                      ln->token.type == TOK_NEXT)) ||
+                                    ln->type == NODE_COMMAND && ln->token.type == TOK_UNTIL) {
+                                    state->current_line = i + 1;
+                                    return;
+                                }
+                            }
+                        }
                     }
                     break;
                 }
@@ -2377,6 +2490,183 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     break;
                 }
 
+                case TOK_CENTRE: {
+                    /* Centre "text" — print centered on current screen */
+                    if (node->child_count > 0) {
+                        eval_result_t val = eval_node(state, node->children[0]);
+                        if (val.type == VAR_STRING && val.sval) {
+                            amos_screen_t *scr = &state->screens[state->current_screen];
+                            if (scr->active) {
+                                int text_len = (int)strlen(val.sval);
+                                int cols = scr->width / 8;
+                                int pad = (cols - text_len) / 2;
+                                if (pad > 0) scr->cursor_x = pad;
+                            }
+                            amos_screen_print(state, val.sval);
+                            amos_screen_print(state, "\n");
+                        }
+                        free_result(&val);
+                    }
+                    break;
+                }
+
+                case TOK_FADE: {
+                    /* Fade speed[,colour0,colour1,...] — stub (visual only) */
+                    /* Skip all arguments — fade is a visual timing effect */
+                    break;
+                }
+
+                case TOK_ADD: {
+                    /* Add var,expr[,base To limit] — add to variable with optional wraparound */
+                    if (node->child_count >= 2) {
+                        amos_node_t *var_node = node->children[0];
+                        if (var_node && var_node->type == NODE_VARIABLE && var_node->token.sval) {
+                            eval_result_t addval = eval_node(state, node->children[1]);
+                            amos_var_t *v = amos_var_get(state, var_node->token.sval);
+                            if (!v) v = amos_var_set_int(state, var_node->token.sval, 0);
+                            double result_val = (v->type == VAR_FLOAT ? v->fval : (double)v->ival) + to_number(addval);
+
+                            /* Optional base To limit wraparound */
+                            if (node->child_count >= 4) {
+                                /* Find the To separator — skip it and get base and limit */
+                                int ai = 2;
+                                double base_val = 0, limit_val = 0;
+                                /* children: var, addval, [base, TO, limit] or [base, limit] */
+                                for (int i = 2; i < node->child_count; i++) {
+                                    if (node->children[i]->type == NODE_COMMAND &&
+                                        node->children[i]->token.type == TOK_TO) continue;
+                                    if (ai == 2) {
+                                        eval_result_t br = eval_node(state, node->children[i]);
+                                        base_val = to_number(br);
+                                        free_result(&br);
+                                        ai = 3;
+                                    } else {
+                                        eval_result_t lr = eval_node(state, node->children[i]);
+                                        limit_val = to_number(lr);
+                                        free_result(&lr);
+                                    }
+                                }
+                                /* Wraparound */
+                                if (result_val > limit_val) result_val = base_val;
+                                if (result_val < base_val) result_val = limit_val;
+                            }
+
+                            if (v->type == VAR_FLOAT) v->fval = result_val;
+                            else v->ival = (int32_t)result_val;
+                            free_result(&addval);
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_INC: {
+                    /* Inc var — increment variable by 1 */
+                    if (node->child_count >= 1) {
+                        amos_node_t *var_node = node->children[0];
+                        if (var_node && var_node->type == NODE_VARIABLE && var_node->token.sval) {
+                            amos_var_t *v = amos_var_get(state, var_node->token.sval);
+                            if (v) {
+                                if (v->type == VAR_FLOAT) v->fval += 1.0;
+                                else v->ival += 1;
+                            } else {
+                                amos_var_set_int(state, var_node->token.sval, 1);
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_DEC: {
+                    /* Dec var — decrement variable by 1 */
+                    if (node->child_count >= 1) {
+                        amos_node_t *var_node = node->children[0];
+                        if (var_node && var_node->type == NODE_VARIABLE && var_node->token.sval) {
+                            amos_var_t *v = amos_var_get(state, var_node->token.sval);
+                            if (v) {
+                                if (v->type == VAR_FLOAT) v->fval -= 1.0;
+                                else v->ival -= 1;
+                            } else {
+                                amos_var_set_int(state, var_node->token.sval, -1);
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_GET_SPRITE_PALETTE: {
+                    /* Get Sprite Palette — copy sprite bank palette to current screen */
+                    /* Stub: no-op for now (visual only) */
+                    break;
+                }
+
+                case TOK_PEN: {
+                    /* Pen colour — set text foreground colour */
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_screen_t *scr = &state->screens[state->current_screen];
+                        if (scr->active) scr->text_pen = to_int(r);
+                        free_result(&r);
+                    }
+                    break;
+                }
+
+                case TOK_PAPER: {
+                    /* Paper colour — set text background colour */
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_screen_t *scr = &state->screens[state->current_screen];
+                        if (scr->active) scr->text_paper = to_int(r);
+                        free_result(&r);
+                    }
+                    break;
+                }
+
+                case TOK_HIDE:
+                case TOK_SHOW:
+                case TOK_FLASH_OFF:
+                case TOK_FLASH:
+                case TOK_CURS_OFF:
+                case TOK_CURS_ON:
+                case TOK_SET_PAINT:
+                case TOK_APPEAR:
+                case TOK_CLINE:
+                case TOK_CLW:
+                    /* Stubs: visual-only commands — no-op in headless */
+                    break;
+
+                case TOK_PASTE_BOB: {
+                    /* Paste Bob image,x,y — paste a bob image (stub) */
+                    break;
+                }
+
+                case TOK_CDOWN: {
+                    /* Cdown — move cursor down one line */
+                    amos_screen_t *scr = &state->screens[state->current_screen];
+                    if (scr->active) scr->cursor_y++;
+                    break;
+                }
+
+                case TOK_CUP: {
+                    /* Cup — move cursor up one line */
+                    amos_screen_t *scr = &state->screens[state->current_screen];
+                    if (scr->active && scr->cursor_y > 0) scr->cursor_y--;
+                    break;
+                }
+
+                case TOK_CLEFT: {
+                    /* Cleft — move cursor left */
+                    amos_screen_t *scr = &state->screens[state->current_screen];
+                    if (scr->active && scr->cursor_x > 0) scr->cursor_x--;
+                    break;
+                }
+
+                case TOK_CRIGHT: {
+                    /* Cright — move cursor right */
+                    amos_screen_t *scr = &state->screens[state->current_screen];
+                    if (scr->active) scr->cursor_x++;
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -2427,6 +2717,46 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 state->current_pos = ge->return_pos;
             }
             break;
+
+        case NODE_PROC_CALL: {
+            /* Proc name[args] — find the matching Procedure definition and jump to it */
+            const char *proc_name = node->token.sval;
+            if (!proc_name) break;
+
+            /* Scan program for matching Procedure name */
+            int target = -1;
+            for (int i = 0; i < state->line_count; i++) {
+                /* Lazy-parse if needed */
+                if (!state->lines[i].ast && state->lines[i].text) {
+                    amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
+                    if (tl && tl->count > 0) {
+                        int p = 0;
+                        state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
+                    }
+                    amos_token_list_free(tl);
+                }
+                amos_node_t *ln = state->lines[i].ast;
+                if (ln && ln->type == NODE_PROCEDURE && ln->token.sval &&
+                    strcasecmp(ln->token.sval, proc_name) == 0) {
+                    target = i;
+                    break;
+                }
+            }
+
+            if (target >= 0 && state->gosub_top < AMOS_MAX_GOSUB_DEPTH) {
+                /* Push return address */
+                gosub_entry_t *ge = &state->gosub_stack[state->gosub_top++];
+                ge->return_line = state->current_line;
+                ge->return_pos = 0;
+                /* Jump to the line after the Procedure definition */
+                state->current_line = target + 1;
+            } else if (target < 0) {
+                snprintf(state->error_msg, sizeof(state->error_msg),
+                         "Procedure not found: %s", proc_name);
+                state->error_code = 24;
+            }
+            break;
+        }
 
         case NODE_DATA:
             /* Data statements are read by READ, not executed */

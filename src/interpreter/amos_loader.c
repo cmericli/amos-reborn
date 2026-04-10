@@ -710,6 +710,59 @@ static const struct {
     {0x05A4, "Val", TF_NONE},            /* Pro Val */
     {0x05DA, "Len", TF_NONE},            /* Pro Len */
 
+    /* Pro variants (+4 from 1.3 base) — discovered from real .AMOS programs */
+    {0x011C, "Border$", TF_NONE},             /* Pro Border$ */
+    {0x0356, "Step ", TF_NONE},               /* Pro Step */
+    {0x0360, "Return", TF_NONE},              /* Pro Return */
+    {0x0386, "Proc ", TF_BRANCH},             /* Pro Proc */
+    {0x03EE, "Error ", TF_NONE},              /* Pro Error */
+    {0x0458, "Add ", TF_NONE},                /* Pro Add */
+    {0x0476, "Print ", TF_NONE},              /* Pro Print */
+    {0x0640, "Dim ", TF_NONE},                /* Pro Dim */
+    {0x0670, "Edit", TF_NONE},                /* Pro Edit */
+    {0x0686, "Rnd", TF_NONE},                 /* Pro Rnd */
+    {0x0986, "Screen Copy ", TF_NONE},         /* Pro Screen Copy */
+    {0x09EA, "Screen Open ", TF_NONE},         /* Pro Screen Open */
+    {0x0A72, "Screen To Front", TF_NONE},      /* Pro Screen To Front */
+    {0x0BAE, "Cls", TF_NONE},                 /* Pro Cls (no arg) */
+    {0x0BB2, "Cls ", TF_NONE},                /* Pro Cls (with arg) */
+    {0x0C6E, "Screen ", TF_NONE},              /* Pro Screen */
+    {0x0C84, "Hires", TF_NONE},               /* Pro Hires */
+    {0x0C90, "Lowres", TF_NONE},              /* Pro Lowres */
+    {0x0CFC, "Palette ", TF_NONE},             /* Pro Palette */
+    {0x0D1C, "Colour ", TF_NONE},              /* Pro Colour */
+    {0x0DDC, "Rainbow ", TF_NONE},             /* Pro Rainbow */
+    {0x0DFE, "Fade ", TF_NONE},                /* Pro Fade */
+    {0x0E3C, "Plot ", TF_NONE},                /* Pro Plot */
+    {0x0E74, "Draw ", TF_NONE},                /* Pro Draw */
+    {0x0E86, "Ellipse ", TF_NONE},             /* Pro Ellipse */
+    {0x0E9A, "Circle ", TF_NONE},              /* Pro Circle */
+    {0x0EC8, "Bar ", TF_NONE},                 /* Pro Bar */
+    {0x0ED8, "Box ", TF_NONE},                 /* Pro Box */
+    {0x0F4A, "Text ", TF_NONE},                /* Pro Text */
+    {0x0F6A, "Set Paint ", TF_NONE},           /* Pro Set Paint */
+    {0x0FB2, "Set Font ", TF_NONE},            /* Pro Set Font */
+    {0x1022, "Set Pattern ", TF_NONE},         /* Pro Set Pattern */
+    {0x1044, "Ink ", TF_NONE},                 /* Pro Ink */
+    {0x1078, "Clip", TF_NONE},                 /* Pro Clip */
+    {0x10B6, "Appear ", TF_NONE},              /* Pro Appear */
+    {0x129E, "Wait ", TF_NONE},                /* Pro Wait */
+    {0x1378, "Locate ", TF_NONE},              /* Pro Locate */
+    {0x13E8, "Centre ", TF_NONE},              /* Pro Centre */
+    {0x14E0, "Scroll ", TF_NONE},              /* Pro Scroll */
+    {0x1528, "Cdown", TF_NONE},               /* Pro Cdown */
+    {0x158A, "Cline", TF_NONE},               /* Pro Cline */
+    {0x1668, "Set Zone ", TF_NONE},            /* Pro Set Zone */
+    {0x17D4, "Load Iff ", TF_NONE},            /* Pro Load Iff */
+    {0x184E, "Load ", TF_NONE},                /* Pro Load */
+    {0x1A94, "Sprite ", TF_NONE},              /* Pro Sprite */
+    {0x1BAE, "Get Sprite Palette", TF_NONE},   /* Pro Get Sprite Palette */
+    {0x1CFE, "Paste Bob ", TF_NONE},           /* Pro Paste Bob */
+    {0x1DE0, "Hide", TF_NONE},                /* Pro Hide */
+    {0x1E32, "Mouse Key", TF_NONE},           /* Pro Mouse Key */
+    {0x1FBC, "Amal On", TF_NONE},             /* Pro Amal On */
+    {0x2946, "Err$", TF_NONE},                /* Pro Err$ (error message) */
+
     /* Pro-only tokens */
     {0x2578, "Comp Test Off", TF_NONE},
     {0x259A, "Trap ", TF_NONE},
@@ -1102,6 +1155,27 @@ char *amos_detokenize(const uint8_t *data, size_t length)
                     } else if ((flags & TF_BRANCH) && tpos + 1 < line_end) {
                         tpos += 2;  /* Skip 1 word */
                     }
+
+                    /* Smart spacing: if keyword doesn't end with space/paren/operator,
+                     * and the next token is a literal, variable, or keyword that starts
+                     * with an alphanumeric, add a space to prevent concatenation */
+                    if (kw[0] != '\0' && tpos + 1 < line_end) {
+                        size_t klen = strlen(kw);
+                        char last_ch = kw[klen - 1];
+                        if (last_ch != ' ' && last_ch != '(' && last_ch != ')' &&
+                            last_ch != ',' && last_ch != ';') {
+                            uint16_t next_tok = BE16(data + tpos);
+                            /* Check if next token will produce alphanumeric output */
+                            if (next_tok == TK_VAR || next_tok == TK_INT ||
+                                next_tok == TK_FLOAT || next_tok == TK_HEX ||
+                                next_tok == TK_BIN || next_tok == TK_STRING ||
+                                next_tok == TK_STRING2 || next_tok == TK_PROC_REF ||
+                                next_tok == TK_LABEL_REF) {
+                                sb_appendc(&out, ' ');
+                            }
+                        }
+                    }
+
                     continue;
                 }
             }
