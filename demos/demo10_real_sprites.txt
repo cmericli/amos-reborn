@@ -1,0 +1,54 @@
+Rem *** AMOS Reborn - Demo 10: Real Amiga Sprites ***
+Rem Loads actual .Abk sprite bank from AMOS Professional
+
+Screen Open 0,320,256,5
+Palette $000,$FFF,$F00,$0F0,$00F,$FF0,$0FF,$F0F,$888,$F80,$08F,$0F8,$80F,$F08,$8F0,$F88
+
+Rem Load the original AMOS Pro sprite bank
+Load "reference/AMOS-Professional-365/AMOS/Tutorial/Objects/Sprites.Abk",1
+
+Cls 0
+
+Rem Display first 8 sprite images statically
+Ink 1,0
+Locate 3,0
+Print "Real Amiga Sprites from AMOS Pro"
+
+Rem Place sprites across the screen
+For I=0 To 7
+  Sprite I,40+I*35,80,I+1
+Next I
+
+Rem Animate them bouncing
+Dim VY(8)
+Dim PY(8)
+For I=0 To 7
+  PY(I)=80
+  VY(I)=1+Rnd(3)
+Next I
+
+FRAME=0
+
+Do
+  Cls 0
+
+  Rem Move sprites
+  For I=0 To 7
+    PY(I)=PY(I)+VY(I)
+    If PY(I)>220 Then VY(I)=0-Abs(VY(I))
+    If PY(I)<30 Then VY(I)=Abs(VY(I))
+    Sprite I,40+I*35,PY(I),I+1
+  Next I
+
+  Rem Title
+  Ink 1,0
+  Locate 2,0
+  Print "Real AMOS Pro Sprites - Bouncing!"
+  Locate 4,30
+  Print "Frame: ";
+  Print FRAME;
+  Print "  Ctrl+T: CRT";
+
+  FRAME=FRAME+1
+  Wait Vbl
+Loop

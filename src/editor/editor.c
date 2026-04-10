@@ -888,6 +888,9 @@ void amos_editor_init(amos_state_t *state)
     scr->palette[2] = EDITOR_COLOR_CYAN;
     scr->palette[3] = EDITOR_COLOR_ORANGE;
 
+    /* Ensure SDL text input is enabled for character events */
+    SDL_StartTextInput();
+
     fprintf(stderr, "[Editor] Initialized (320x256, 4-color AMOS 1.3 palette)\n");
 }
 
@@ -929,6 +932,28 @@ void amos_editor_tick(amos_state_t *state)
 
             case SDL_KEYDOWN:
                 editor_handle_key(state, event.key.keysym);
+                break;
+
+            case SDL_TEXTINPUT:
+                /* Handle printable character input (macOS needs this) */
+                if (event.text.text[0] >= 32 && event.text.text[0] < 127) {
+                    if (g_editor.direct_mode) {
+                        int len = (int)strlen(g_editor.direct_line);
+                        if (len < EDITOR_DIRECT_LEN - 1) {
+                            char ch = event.text.text[0];
+                            memmove(g_editor.direct_line + g_editor.direct_cursor + 1,
+                                    g_editor.direct_line + g_editor.direct_cursor,
+                                    len - g_editor.direct_cursor + 1);
+                            g_editor.direct_line[g_editor.direct_cursor] = ch;
+                            g_editor.direct_cursor++;
+                        }
+                    } else {
+                        editor_insert_char_at_cursor(event.text.text[0]);
+                        g_editor.modified = true;
+                    }
+                    g_editor.blink_counter = 0;
+                    g_editor.cursor_visible = true;
+                }
                 break;
 
             case SDL_WINDOWEVENT:
