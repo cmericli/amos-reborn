@@ -9,6 +9,7 @@
  */
 
 #include "amos.h"
+#include "editor/editor.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +28,8 @@ static amos_state_t *g_state = NULL;
 
 /* ── Built-in Demo Program ───────────────────────────────────────── */
 
-static const char *demo_program =
+/* Built-in demo program — available via direct mode "Run Demo" or future menu */
+static const char *demo_program __attribute__((unused)) =
     "Rem *** AMOS Reborn Demo ***\n"
     "Screen Open 0,320,256,5\n"
     "Palette $000,$FFF,$F00,$0F0,$00F,$FF0,$0FF,$F0F,$888,$F80,$08F,$0F8,$80F,$F08,$8F0,$F88\n"
@@ -100,7 +102,13 @@ static void emscripten_frame(void)
         emscripten_cancel_main_loop();
         return;
     }
-    amos_frame_tick(g_state);
+    if (amos_editor_is_active(g_state)) {
+        amos_editor_tick(g_state);
+    } else if (g_state->running) {
+        amos_frame_tick(g_state);
+    } else {
+        amos_editor_init(g_state);
+    }
 }
 #endif
 
@@ -118,7 +126,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Load program */
+    /* Determine mode: editor (no args) or run program (with file arg) */
+    bool start_in_editor = (argc <= 1);
+
+    /* Load program if specified */
     if (argc > 1) {
         fprintf(stderr, "Loading: %s\n", argv[1]);
         if (amos_load_file(g_state, argv[1]) < 0) {
@@ -126,16 +137,21 @@ int main(int argc, char *argv[])
             amos_destroy(g_state);
             return 1;
         }
-    } else {
-        fprintf(stderr, "No program specified — running built-in demo\n");
-        amos_load_text(g_state, demo_program);
     }
 
     /* Initialize platform (SDL2 + OpenGL window) */
-    int scale = (g_state->display_mode == AMOS_MODE_CLASSIC) ? 3 : 1;
-    amos_screen_t *scr = &g_state->screens[0];
-    int win_w = scr->active ? scr->width * scale : 960;
-    int win_h = scr->active ? scr->height * scale : 768;
+    int win_w, win_h;
+
+    if (start_in_editor) {
+        /* Editor uses 320x256, scale 3x for comfortable viewing */
+        win_w = EDITOR_SCREEN_W * 3;
+        win_h = EDITOR_SCREEN_H * 3;
+    } else {
+        int scale = (g_state->display_mode == AMOS_MODE_CLASSIC) ? 3 : 1;
+        amos_screen_t *scr = &g_state->screens[0];
+        win_w = scr->active ? scr->width * scale : 960;
+        win_h = scr->active ? scr->height * scale : 768;
+    }
 
     if (platform_init(g_state, win_w, win_h, "AMOS Reborn") < 0) {
         fprintf(stderr, "Platform initialization failed\n");
@@ -146,15 +162,30 @@ int main(int argc, char *argv[])
     /* Initialize audio */
     platform_audio_init(g_state);
 
-    /* Start program */
-    amos_run(g_state);
+    if (start_in_editor) {
+        /* Start in editor mode */
+        fprintf(stderr, "No program specified — opening AMOS 1.3 editor\n");
+        amos_editor_init(g_state);
+    } else {
+        /* Start program directly */
+        amos_run(g_state);
+    }
 
     /* Main loop */
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(emscripten_frame, 0, 1);
 #else
     while (!platform_should_quit()) {
-        amos_frame_tick(g_state);
+        if (amos_editor_is_active(g_state)) {
+            /* Editor mode: editor handles its own input, rendering, and presentation */
+            amos_editor_tick(g_state);
+        } else if (g_state->running) {
+            /* Run mode: execute the program */
+            amos_frame_tick(g_state);
+        } else {
+            /* Program ended — return to editor */
+            amos_editor_init(g_state);
+        }
 
         /* Simple frame rate limiting (~60fps) */
         SDL_Delay(16);
@@ -162,6 +193,7 @@ int main(int argc, char *argv[])
 #endif
 
     /* Cleanup */
+    amos_editor_destroy(g_state);
     platform_shutdown();
     amos_destroy(g_state);
 

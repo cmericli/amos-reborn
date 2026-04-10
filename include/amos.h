@@ -10,13 +10,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 
 /* ── Version ─────────────────────────────────────────────────────── */
 
 #define AMOS_VERSION_MAJOR 0
-#define AMOS_VERSION_MINOR 3
+#define AMOS_VERSION_MINOR 4
 #define AMOS_VERSION_PATCH 0
-#define AMOS_VERSION_STRING "0.3.0"
+#define AMOS_VERSION_STRING "0.4.0"
 
 /* ── Limits ──────────────────────────────────────────────────────── */
 
@@ -224,6 +225,18 @@ typedef enum {
     TOK_BLOAD,
     TOK_BSAVE,
 
+    /* Keywords — Screen Manipulation */
+    TOK_SCREEN_COPY,
+    TOK_GET_BLOCK,
+    TOK_PUT_BLOCK,
+    TOK_DEL_BLOCK,
+    TOK_SCROLL,
+    TOK_DEF_SCROLL,
+    TOK_SCREEN_TO_FRONT,
+    TOK_SCREEN_TO_BACK,
+    TOK_SCREEN_HIDE,
+    TOK_SCREEN_SHOW,
+
     /* Keywords — Screen Mode */
     TOK_RAINBOW,
     TOK_COPPER,
@@ -231,6 +244,27 @@ typedef enum {
     TOK_SCREEN_SWAP,
     TOK_DOUBLE_BUFFER,
     TOK_AUTOBACK,
+
+    /* Keywords — File I/O */
+    TOK_OPEN_IN,
+    TOK_OPEN_OUT,
+    TOK_APPEND,
+    TOK_CLOSE,
+    TOK_PRINT_FILE,         /* Print # */
+    TOK_INPUT_FILE,         /* Input # */
+    TOK_LINE_INPUT_FILE,    /* Line Input # */
+    TOK_KILL,
+    TOK_RENAME,
+    TOK_MKDIR,
+
+    /* Keywords — Error Handling */
+    TOK_ON_ERROR_GOTO,
+    TOK_ON_ERROR_PROC,
+    TOK_RESUME,
+    TOK_RESUME_NEXT,
+    TOK_RESUME_LABEL,
+    TOK_TRAP,
+    TOK_ERROR,
 
     /* Keywords — System */
     TOK_REM,
@@ -240,6 +274,7 @@ typedef enum {
     TOK_TIMER,
     TOK_RANDOMIZE,
     TOK_MODE,
+    TOK_POKE,
 
     /* Keywords — Modern Extensions */
     TOK_SCREEN_MODE,        /* Mode Classic / Mode Modern */
@@ -501,6 +536,25 @@ typedef struct {
     float tint_r, tint_g, tint_b;
 } crt_params_t;
 
+/* ── Block Storage (Get Block / Put Block) ──────────────────────── */
+
+#define AMOS_MAX_BLOCKS 64
+
+typedef struct {
+    int width, height;
+    uint32_t *pixels;
+    bool used;
+} amos_block_t;
+
+/* ── Scroll Zone (Def Scroll) ───────────────────────────────────── */
+
+#define AMOS_MAX_SCROLL_ZONES 16
+
+typedef struct {
+    bool defined;
+    int x1, y1, x2, y2;
+} amos_scroll_zone_t;
+
 /* ── Main State ──────────────────────────────────────────────────── */
 
 typedef struct {
@@ -548,6 +602,12 @@ typedef struct {
     /* Banks */
     amos_bank_t banks[AMOS_MAX_BANKS];
 
+    /* Block storage (Get Block / Put Block) */
+    amos_block_t blocks[AMOS_MAX_BLOCKS];
+
+    /* Scroll zones (Def Scroll) */
+    amos_scroll_zone_t scroll_zones[AMOS_MAX_SCROLL_ZONES];
+
     /* AMAL */
     amal_channel_t amal[AMOS_MAX_AMAL_CHANNELS];
     int amal_global_regs[26];   /* RA-RZ shared AMAL registers */
@@ -571,10 +631,26 @@ typedef struct {
     int mouse_click;             /* Buttons clicked since last check */
     bool key_states[512];        /* Per-key state (indexed by SDL_SCANCODE) */
 
+    /* File I/O */
+    FILE *file_channels[11];        /* channels 1-10 (index 0 unused) */
+    int   file_channel_mode[11];    /* 0=closed, 1=input, 2=output, 3=append */
+
+    /* Directory scanning */
+    char dir_pattern[256];
+    void *dir_handle;               /* opaque DIR* pointer */
+
     /* Error state */
     int error_code;
     char error_msg[256];
     int error_line;
+
+    /* Error handling */
+    int on_error_line;          /* target line for On Error Goto (-1 = disabled) */
+    char on_error_proc[64];     /* target procedure for On Error Proc */
+    bool trap_mode;             /* Trap mode: errors set last_error instead of stopping */
+    int last_error;             /* last error number (Err) */
+    int last_error_line;        /* line where last error occurred (Erl) */
+    int resume_line;            /* line to resume from after error handler */
 } amos_state_t;
 
 /* ── API: Lifecycle ──────────────────────────────────────────────── */
@@ -647,6 +723,23 @@ void amos_screen_ink(amos_state_t *state, int pen, int paper, int outline);
 void amos_screen_colour(amos_state_t *state, int index, uint32_t rgb);
 void amos_screen_palette(amos_state_t *state, uint32_t *colors, int count);
 
+/* ── API: Screen Manipulation ────────────────────────────────────── */
+
+void amos_screen_copy(amos_state_t *state, int src_id, int x1, int y1, int x2, int y2,
+                      int dst_id, int dx, int dy);
+void amos_get_block(amos_state_t *state, int id, int x, int y, int w, int h);
+void amos_put_block(amos_state_t *state, int id, int x, int y);
+void amos_del_block(amos_state_t *state, int id);
+void amos_screen_scroll(amos_state_t *state, int dx, int dy);
+void amos_def_scroll(amos_state_t *state, int id, int x1, int y1, int x2, int y2);
+void amos_scroll_zone(amos_state_t *state, int id, int dx, int dy);
+void amos_screen_to_front(amos_state_t *state, int id);
+void amos_screen_to_back(amos_state_t *state, int id);
+void amos_screen_hide(amos_state_t *state, int id);
+void amos_screen_show(amos_state_t *state, int id);
+void amos_screen_paint(amos_state_t *state, int x, int y, int color);
+void amos_screen_polygon(amos_state_t *state, int *points, int npoints, int color);
+
 /* ── API: IFF/ILBM Loader ────────────────────────────────────────── */
 
 int  amos_load_iff(amos_state_t *state, const char *path);
@@ -718,6 +811,22 @@ void amos_bob_off(amos_state_t *state, int id);
 void amos_sprites_render(amos_state_t *state, uint32_t *output, int out_w, int out_h);
 int  amos_sprite_col(amos_state_t *state, int id);
 int  amos_bob_col(amos_state_t *state, int id);
+void amos_sprites_load_bank(amos_state_t *state, uint32_t *images[],
+                             int *widths, int *heights,
+                             int *hot_xs, int *hot_ys, int count);
+uint32_t *amos_sprites_get_image(amos_state_t *state, int index,
+                                  int *width, int *height);
+
+/* ── API: Sprite/Icon Bank Loader (.abk) ────────────────────────── */
+
+int       amos_load_sprite_bank(amos_state_t *state, const char *path);
+int       amos_load_sprite_bank_mem(amos_state_t *state, const uint8_t *data,
+                                     size_t length);
+int       amos_load_icon_bank(amos_state_t *state, const char *path);
+uint32_t *amos_get_sprite_image(amos_state_t *state, int index,
+                                 int *width, int *height);
+void      amos_exec_load_bank(amos_state_t *state, const char *filename,
+                               int bank_num);
 
 /* ── Compositor ──────────────────────────────────────────────────── */
 
@@ -735,6 +844,26 @@ int         amos_y_mouse(amos_state_t *state);
 int         amos_mouse_key(amos_state_t *state);
 int         amos_mouse_click(amos_state_t *state);
 int         amos_joy(amos_state_t *state, int port);
+
+/* ── API: File I/O ──────────────────────────────────────────────────── */
+
+void  amos_file_open_in(amos_state_t *state, int channel, const char *path);
+void  amos_file_open_out(amos_state_t *state, int channel, const char *path);
+void  amos_file_append(amos_state_t *state, int channel, const char *path);
+void  amos_file_close(amos_state_t *state, int channel);
+char *amos_file_input_line(amos_state_t *state, int channel);
+int   amos_file_input_int(amos_state_t *state, int channel);
+char *amos_file_input_str(amos_state_t *state, int channel);
+int   amos_file_eof(amos_state_t *state, int channel);
+void  amos_file_print(amos_state_t *state, int channel, const char *text);
+char *amos_dir_first(amos_state_t *state, const char *pattern);
+char *amos_dir_next(amos_state_t *state);
+int   amos_file_exist(amos_state_t *state, const char *path);
+int   amos_file_length(amos_state_t *state, const char *path);
+void  amos_file_kill(amos_state_t *state, const char *path);
+void  amos_file_rename(amos_state_t *state, const char *old_name, const char *new_name);
+void  amos_file_mkdir(amos_state_t *state, const char *path);
+void  amos_file_close_all(amos_state_t *state);
 
 /* ── Pixel Packing (little-endian safe for GL_RGBA GL_UNSIGNED_BYTE) ── */
 

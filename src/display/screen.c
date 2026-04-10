@@ -409,3 +409,413 @@ void amos_screen_print(amos_state_t *state, const char *text)
         }
     }
 }
+
+/* ── Screen Copy ────────────────────────────────────────────────── */
+
+void amos_screen_copy(amos_state_t *state, int src_id, int x1, int y1, int x2, int y2,
+                      int dst_id, int dx, int dy)
+{
+    if (src_id < 0 || src_id >= AMOS_MAX_SCREENS) return;
+    if (dst_id < 0 || dst_id >= AMOS_MAX_SCREENS) return;
+    amos_screen_t *src = &state->screens[src_id];
+    amos_screen_t *dst = &state->screens[dst_id];
+    if (!src->active || !dst->active) return;
+
+    /* Normalize coordinates */
+    if (x1 > x2) { int t = x1; x1 = x2; x2 = t; }
+    if (y1 > y2) { int t = y1; y1 = y2; y2 = t; }
+
+    int w = x2 - x1 + 1;
+    int h = y2 - y1 + 1;
+
+    /* Allocate temp buffer to handle overlapping src/dst correctly */
+    uint32_t *tmp = malloc(w * h * sizeof(uint32_t));
+    if (!tmp) return;
+
+    /* Copy source region to temp */
+    for (int row = 0; row < h; row++) {
+        int sy = y1 + row;
+        for (int col = 0; col < w; col++) {
+            int sx = x1 + col;
+            if (sx >= 0 && sx < src->width && sy >= 0 && sy < src->height)
+                tmp[row * w + col] = src->pixels[sy * src->width + sx];
+            else
+                tmp[row * w + col] = src->palette[0];
+        }
+    }
+
+    /* Copy temp to destination */
+    for (int row = 0; row < h; row++) {
+        int ddy = dy + row;
+        for (int col = 0; col < w; col++) {
+            int ddx = dx + col;
+            if (ddx >= 0 && ddx < dst->width && ddy >= 0 && ddy < dst->height)
+                dst->pixels[ddy * dst->width + ddx] = tmp[row * w + col];
+        }
+    }
+
+    free(tmp);
+}
+
+/* ── Get Block / Put Block / Del Block ──────────────────────────── */
+
+void amos_get_block(amos_state_t *state, int id, int x, int y, int w, int h)
+{
+    if (id < 0 || id >= AMOS_MAX_BLOCKS) return;
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+    if (w <= 0 || h <= 0) return;
+
+    amos_block_t *blk = &state->blocks[id];
+
+    /* Free existing block data */
+    if (blk->used && blk->pixels) {
+        free(blk->pixels);
+    }
+
+    blk->width = w;
+    blk->height = h;
+    blk->pixels = malloc(w * h * sizeof(uint32_t));
+    if (!blk->pixels) return;
+    blk->used = true;
+
+    for (int row = 0; row < h; row++) {
+        int sy = y + row;
+        for (int col = 0; col < w; col++) {
+            int sx = x + col;
+            if (sx >= 0 && sx < scr->width && sy >= 0 && sy < scr->height)
+                blk->pixels[row * w + col] = scr->pixels[sy * scr->width + sx];
+            else
+                blk->pixels[row * w + col] = scr->palette[0];
+        }
+    }
+}
+
+void amos_put_block(amos_state_t *state, int id, int x, int y)
+{
+    if (id < 0 || id >= AMOS_MAX_BLOCKS) return;
+    amos_block_t *blk = &state->blocks[id];
+    if (!blk->used || !blk->pixels) return;
+
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+
+    for (int row = 0; row < blk->height; row++) {
+        int dy = y + row;
+        for (int col = 0; col < blk->width; col++) {
+            int ddx = x + col;
+            if (ddx >= 0 && ddx < scr->width && dy >= 0 && dy < scr->height)
+                scr->pixels[dy * scr->width + ddx] = blk->pixels[row * blk->width + col];
+        }
+    }
+}
+
+void amos_del_block(amos_state_t *state, int id)
+{
+    if (id < 0 || id >= AMOS_MAX_BLOCKS) return;
+    amos_block_t *blk = &state->blocks[id];
+    if (blk->used && blk->pixels) {
+        free(blk->pixels);
+    }
+    memset(blk, 0, sizeof(amos_block_t));
+}
+
+/* ── Scroll ─────────────────────────────────────────────────────── */
+
+void amos_screen_scroll(amos_state_t *state, int dx, int dy)
+{
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+
+    int w = scr->width;
+    int h = scr->height;
+    uint32_t bg = scr->palette[0];
+
+    if (abs(dx) >= w || abs(dy) >= h) {
+        /* Scrolled completely off -- clear */
+        for (int i = 0; i < w * h; i++) scr->pixels[i] = bg;
+        return;
+    }
+
+    /* Vertical scroll using memmove */
+    if (dy > 0) {
+        /* Scroll down: move rows up in memory, expose top */
+        memmove(scr->pixels + dy * w, scr->pixels, (h - dy) * w * sizeof(uint32_t));
+        for (int i = 0; i < dy * w; i++) scr->pixels[i] = bg;
+    } else if (dy < 0) {
+        /* Scroll up: move rows down in memory, expose bottom */
+        int ady = -dy;
+        memmove(scr->pixels, scr->pixels + ady * w, (h - ady) * w * sizeof(uint32_t));
+        for (int i = (h - ady) * w; i < h * w; i++) scr->pixels[i] = bg;
+    }
+
+    /* Horizontal scroll */
+    if (dx > 0) {
+        /* Scroll right: expose left */
+        for (int row = 0; row < h; row++) {
+            uint32_t *line = scr->pixels + row * w;
+            memmove(line + dx, line, (w - dx) * sizeof(uint32_t));
+            for (int i = 0; i < dx; i++) line[i] = bg;
+        }
+    } else if (dx < 0) {
+        /* Scroll left: expose right */
+        int adx = -dx;
+        for (int row = 0; row < h; row++) {
+            uint32_t *line = scr->pixels + row * w;
+            memmove(line, line + adx, (w - adx) * sizeof(uint32_t));
+            for (int i = w - adx; i < w; i++) line[i] = bg;
+        }
+    }
+}
+
+/* ── Def Scroll / Scroll Zone ───────────────────────────────────── */
+
+void amos_def_scroll(amos_state_t *state, int id, int x1, int y1, int x2, int y2)
+{
+    if (id < 0 || id >= AMOS_MAX_SCROLL_ZONES) return;
+    amos_scroll_zone_t *z = &state->scroll_zones[id];
+    z->defined = true;
+    z->x1 = x1 < x2 ? x1 : x2;
+    z->y1 = y1 < y2 ? y1 : y2;
+    z->x2 = x1 > x2 ? x1 : x2;
+    z->y2 = y1 > y2 ? y1 : y2;
+}
+
+void amos_scroll_zone(amos_state_t *state, int id, int dx, int dy)
+{
+    if (id < 0 || id >= AMOS_MAX_SCROLL_ZONES) return;
+    amos_scroll_zone_t *z = &state->scroll_zones[id];
+    if (!z->defined) return;
+
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+
+    int zw = z->x2 - z->x1 + 1;
+    int zh = z->y2 - z->y1 + 1;
+    uint32_t bg = scr->palette[0];
+
+    if (abs(dx) >= zw || abs(dy) >= zh) {
+        /* Clear the zone */
+        for (int row = z->y1; row <= z->y2; row++) {
+            for (int col = z->x1; col <= z->x2; col++) {
+                if (col >= 0 && col < scr->width && row >= 0 && row < scr->height)
+                    scr->pixels[row * scr->width + col] = bg;
+            }
+        }
+        return;
+    }
+
+    /* Use temp buffer for zone scroll */
+    uint32_t *tmp = malloc(zw * zh * sizeof(uint32_t));
+    if (!tmp) return;
+
+    /* Copy zone to temp */
+    for (int row = 0; row < zh; row++) {
+        for (int col = 0; col < zw; col++) {
+            int sx = z->x1 + col, sy = z->y1 + row;
+            if (sx >= 0 && sx < scr->width && sy >= 0 && sy < scr->height)
+                tmp[row * zw + col] = scr->pixels[sy * scr->width + sx];
+            else
+                tmp[row * zw + col] = bg;
+        }
+    }
+
+    /* Write back shifted, fill exposed with bg */
+    for (int row = 0; row < zh; row++) {
+        for (int col = 0; col < zw; col++) {
+            int src_col = col - dx;
+            int src_row = row - dy;
+            uint32_t pixel;
+            if (src_col >= 0 && src_col < zw && src_row >= 0 && src_row < zh)
+                pixel = tmp[src_row * zw + src_col];
+            else
+                pixel = bg;
+            int tx = z->x1 + col, ty = z->y1 + row;
+            if (tx >= 0 && tx < scr->width && ty >= 0 && ty < scr->height)
+                scr->pixels[ty * scr->width + tx] = pixel;
+        }
+    }
+
+    free(tmp);
+}
+
+/* ── Screen To Front / Screen To Back ───────────────────────────── */
+
+void amos_screen_to_front(amos_state_t *state, int id)
+{
+    if (id < 0 || id >= AMOS_MAX_SCREENS) return;
+    if (!state->screens[id].active) return;
+    int old_priority = state->screens[id].priority;
+    for (int i = 0; i < AMOS_MAX_SCREENS; i++) {
+        if (state->screens[i].active && state->screens[i].priority < old_priority)
+            state->screens[i].priority++;
+    }
+    state->screens[id].priority = 0;
+}
+
+void amos_screen_to_back(amos_state_t *state, int id)
+{
+    if (id < 0 || id >= AMOS_MAX_SCREENS) return;
+    if (!state->screens[id].active) return;
+    int max_pri = 0;
+    int old_priority = state->screens[id].priority;
+    for (int i = 0; i < AMOS_MAX_SCREENS; i++) {
+        if (state->screens[i].active && state->screens[i].priority > max_pri)
+            max_pri = state->screens[i].priority;
+    }
+    for (int i = 0; i < AMOS_MAX_SCREENS; i++) {
+        if (state->screens[i].active && state->screens[i].priority > old_priority)
+            state->screens[i].priority--;
+    }
+    state->screens[id].priority = max_pri;
+}
+
+/* ── Screen Hide / Screen Show ──────────────────────────────────── */
+
+void amos_screen_hide(amos_state_t *state, int id)
+{
+    if (id < 0 || id >= AMOS_MAX_SCREENS) return;
+    state->screens[id].visible = false;
+}
+
+void amos_screen_show(amos_state_t *state, int id)
+{
+    if (id < 0 || id >= AMOS_MAX_SCREENS) return;
+    state->screens[id].visible = true;
+}
+
+/* ── Paint (Iterative Scanline Flood Fill) ──────────────────────── */
+
+void amos_screen_paint(amos_state_t *state, int x, int y, int color)
+{
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+    if (x < 0 || x >= scr->width || y < 0 || y >= scr->height) return;
+
+    uint32_t fill_color = scr->palette[color % 256];
+    uint32_t target_color = scr->pixels[y * scr->width + x];
+
+    if (fill_color == target_color) return;  /* Already the fill color */
+
+    /* Heap-allocated stack for iterative scanline flood fill */
+    typedef struct { int x, y; } point_t;
+    int cap = 4096;
+    int top = 0;
+    point_t *stack = malloc(cap * sizeof(point_t));
+    if (!stack) return;
+
+    stack[top++] = (point_t){x, y};
+
+    while (top > 0) {
+        point_t p = stack[--top];
+
+        /* Skip out-of-bounds or wrong color */
+        if (p.x < 0 || p.x >= scr->width || p.y < 0 || p.y >= scr->height)
+            continue;
+        if (scr->pixels[p.y * scr->width + p.x] != target_color)
+            continue;
+
+        /* Scanline fill: find leftmost and rightmost extent */
+        int lx = p.x, rx = p.x;
+        while (lx > 0 && scr->pixels[p.y * scr->width + (lx - 1)] == target_color)
+            lx--;
+        while (rx < scr->width - 1 && scr->pixels[p.y * scr->width + (rx + 1)] == target_color)
+            rx++;
+
+        /* Fill the scanline */
+        for (int i = lx; i <= rx; i++)
+            scr->pixels[p.y * scr->width + i] = fill_color;
+
+        /* Push spans above and below */
+        for (int dir = -1; dir <= 1; dir += 2) {
+            int ny = p.y + dir;
+            if (ny < 0 || ny >= scr->height) continue;
+
+            bool span_start = false;
+            for (int i = lx; i <= rx; i++) {
+                if (scr->pixels[ny * scr->width + i] == target_color) {
+                    if (!span_start) {
+                        if (top >= cap) {
+                            cap *= 2;
+                            stack = realloc(stack, cap * sizeof(point_t));
+                            if (!stack) return;
+                        }
+                        stack[top++] = (point_t){i, ny};
+                        span_start = true;
+                    }
+                } else {
+                    span_start = false;
+                }
+            }
+        }
+    }
+
+    free(stack);
+}
+
+/* ── Polygon (Filled, Scanline Algorithm) ───────────────────────── */
+
+void amos_screen_polygon(amos_state_t *state, int *points, int npoints, int color)
+{
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active || npoints < 3) return;
+
+    uint32_t c = scr->palette[color % 256];
+
+    /* Find Y bounds */
+    int ymin = points[1], ymax = points[1];
+    for (int i = 1; i < npoints; i++) {
+        int py = points[i * 2 + 1];
+        if (py < ymin) ymin = py;
+        if (py > ymax) ymax = py;
+    }
+
+    if (ymin < 0) ymin = 0;
+    if (ymax >= scr->height) ymax = scr->height - 1;
+
+    /* Allocate intersections array */
+    int *nodes = malloc(npoints * sizeof(int));
+    if (!nodes) return;
+
+    /* Scanline fill */
+    for (int y = ymin; y <= ymax; y++) {
+        int node_count = 0;
+
+        /* Find intersections with all edges */
+        int j = npoints - 1;
+        for (int i = 0; i < npoints; i++) {
+            int yi = points[i * 2 + 1];
+            int yj = points[j * 2 + 1];
+            if ((yi < y && yj >= y) || (yj < y && yi >= y)) {
+                int xi = points[i * 2];
+                int xj = points[j * 2];
+                nodes[node_count++] = xi + (long)(y - yi) * (xj - xi) / (yj - yi);
+            }
+            j = i;
+        }
+
+        /* Sort intersections (insertion sort) */
+        for (int i = 1; i < node_count; i++) {
+            int tmp = nodes[i];
+            int k = i - 1;
+            while (k >= 0 && nodes[k] > tmp) {
+                nodes[k + 1] = nodes[k];
+                k--;
+            }
+            nodes[k + 1] = tmp;
+        }
+
+        /* Fill between pairs */
+        for (int i = 0; i < node_count - 1; i += 2) {
+            int fx1 = nodes[i];
+            int fx2 = nodes[i + 1];
+            if (fx1 < 0) fx1 = 0;
+            if (fx2 >= scr->width) fx2 = scr->width - 1;
+            for (int px = fx1; px <= fx2; px++) {
+                put_pixel(scr, px, y, c);
+            }
+        }
+    }
+
+    free(nodes);
+}

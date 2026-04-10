@@ -1,0 +1,63 @@
+Rem *** AMOS Reborn Demo 7: Screen Operations ***
+Rem Screen Copy, Get/Put Block, Scroll, Def Scroll,
+Rem Screen To Front/Back, Screen Hide/Show, Paint, Polygon
+
+Rem === Setup: Open two screens ===
+Screen Open 0,320,200,5
+Screen Open 1,320,200,5
+
+Rem === Draw some content on screen 0 ===
+Screen 0
+Cls 0
+Ink 1
+Bar 10,10 To 60,60
+Ink 2
+Circle 160,100,40
+Ink 3
+Box 200,50 To 280,150
+
+Rem === Screen Copy: copy a region from screen 0 to screen 1 ===
+Screen Copy 0,10,10,60,60 To 1,100,100
+
+Rem === Get Block: save a region from screen 0 ===
+Screen 0
+Get Block 1,150,50,80,80
+
+Rem === Put Block: paste it at a new position on screen 1 ===
+Screen 1
+Put Block 1,10,10
+
+Rem === Paint (flood fill): fill enclosed area ===
+Screen 0
+Ink 4
+Bar 100,20 To 140,60
+Ink 5
+Paint 120,40,5
+
+Rem === Polygon: filled triangle ===
+Ink 6
+Polygon 50,150 To 100,120 To 80,180
+
+Rem === Scroll: scroll screen content ===
+Screen 0
+Scroll 5,0
+
+Rem === Def Scroll + zone scroll ===
+Def Scroll 1,0,0,100,50
+Scroll 1,2,0
+
+Rem === Screen layering ===
+Screen To Front 1
+Screen To Back 1
+
+Rem === Screen visibility ===
+Screen Hide 1
+Screen Show 1
+
+Rem === Clean up blocks ===
+Del Block 1
+
+Rem === Done ===
+Screen 0
+Print "Screen ops demo complete!"
+End

@@ -1,0 +1,33 @@
+Rem *** AMOS Reborn — File I/O Demo ***
+Rem
+Rem Demonstrates: Open Out, Print #, Close, Open In, Line Input #, Eof
+Rem
+
+Rem Write data to a file
+Open Out 1,"test_output.txt"
+Print #1,"Hello from AMOS Reborn!"
+Print #1,"Line 2"
+Print #1,"Line 3 — File I/O works!"
+Close 1
+
+Rem Read it back
+Print "Reading file back:"
+Print ""
+Open In 1,"test_output.txt"
+While Not Eof(1)
+  Line Input #1,A$
+  Print A$
+Wend
+Close 1
+
+Rem Check file exists and size
+If Exist("test_output.txt")
+  Print ""
+  Print "File exists, length = ";Filelen("test_output.txt");" bytes"
+End If
+
+Rem Clean up
+Kill "test_output.txt"
+Print ""
+Print "File I/O test complete!"
+Wait Key

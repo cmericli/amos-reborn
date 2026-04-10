@@ -1,0 +1,64 @@
+Rem *** AMOS Reborn — Error Handling Demo ***
+
+Rem === Part 1: Trap Mode ===
+Print "--- Trap Mode ---"
+Trap
+Error 3
+Print "Trap caught error: ";Err;" - ";Err$
+Print "Error occurred at line: ";Erl
+Print ""
+
+Rem === Part 2: On Error Goto ===
+Print "--- On Error Goto ---"
+On Error Goto 100
+Error 9
+Print "This should not print"
+Goto 200
+
+100 Print "Error handler caught: ";Err;" - ";Err$
+Resume Next
+
+200 Print "Continued after error handler"
+Print ""
+
+Rem === Part 3: String Functions ===
+Print "--- String Functions ---"
+A$="Hello World"
+Print "Upper$: ";Upper$(A$)
+Print "Lower$: ";Lower$(A$)
+Print "Flip$: ";Flip$(A$)
+Print "Trim$: ";Trim$("  spaces  ")
+Print "Replace$: ";Replace$(A$,"World","AMOS")
+Print "Space$(5): [";Space$(5);"]"
+Print "String$: ";String$("Ab",3)
+Print "Hex$(255): ";Hex$(255)
+Print "Bin$(42): ";Bin$(42)
+Print ""
+
+Rem === Part 4: Math Functions ===
+Print "--- Math Functions ---"
+Print "Pi#: ";Pi#
+Print "Deg(Pi#): ";Deg(Pi#)
+Print "Rad(180): ";Rad(180)
+Print "Asin(1): ";Asin(1)
+Print "Acos(0): ";Acos(0)
+Print "Atan(1): ";Atan(1)
+Print "Fix(-3.7): ";Fix(-3.7)
+Print "Fix(3.7): ";Fix(3.7)
+Print ""
+
+Rem === Part 5: Utility Functions ===
+Print "--- Utility ---"
+Print "Free memory: ";Free
+
+Rem === Part 6: Swap ===
+Print "--- Swap ---"
+X=10
+Y=20
+Print "Before: X=";X;" Y=";Y
+Swap X,Y
+Print "After:  X=";X;" Y=";Y
+
+Print ""
+Print "Demo complete!"
+End

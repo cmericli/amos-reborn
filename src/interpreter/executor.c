@@ -11,6 +11,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <ctype.h>
 
 /* ── Expression Evaluation ───────────────────────────────────────── */
 
@@ -116,6 +117,49 @@ static void free_result(eval_result_t *r)
         free(r->sval);
         r->sval = NULL;
     }
+}
+
+/* ── AMOS Error Messages ────────────────────────────────────────── */
+
+static const char *amos_error_messages[] = {
+    /* 0  */ "No error",
+    /* 1  */ "Return without Gosub",
+    /* 2  */ "Out of data",
+    /* 3  */ "Division by zero",
+    /* 4  */ "Overflow",
+    /* 5  */ "Out of memory",
+    /* 6  */ "Type mismatch",
+    /* 7  */ "String too long",
+    /* 8  */ "Array not dimensioned",
+    /* 9  */ "Subscript out of range",
+    /* 10 */ "Duplicate definition",
+    /* 11 */ "Syntax error",
+    /* 12 */ "Illegal function call",
+    /* 13 */ "File not found",
+    /* 14 */ "Disc full",
+    /* 15 */ "Device I/O error",
+    /* 16 */ "File already open",
+    /* 17 */ "File not open",
+    /* 18 */ "Input past end",
+    /* 19 */ "Bad file name",
+    /* 20 */ "Bank not reserved",
+    /* 21 */ "Sprite/Bob not defined",
+    /* 22 */ "Screen not opened",
+    /* 23 */ "Label not defined",
+    /* 24 */ "Procedure not found",
+    /* 25 */ "Function not found",
+    /* 26 */ "Next without For",
+    /* 27 */ "Wend without While",
+    /* 28 */ "Until without Repeat",
+    /* 29 */ "Illegal instruction",
+};
+#define AMOS_NUM_ERROR_MSGS (sizeof(amos_error_messages) / sizeof(amos_error_messages[0]))
+
+static const char *amos_get_error_message(int err_num)
+{
+    if (err_num >= 0 && err_num < (int)AMOS_NUM_ERROR_MSGS)
+        return amos_error_messages[err_num];
+    return "Unknown error";
 }
 
 /* Evaluate built-in functions */
@@ -302,6 +346,209 @@ static eval_result_t eval_function(amos_state_t *state, amos_node_t *node)
     else if (strcasecmp(name, "Fire") == 0) {
         int port = argc > 0 ? to_int(args[0]) : 1;
         result = make_int((amos_joy(state, port) & 16) ? -1 : 0);
+    }
+    /* ── String Functions ───────────────────────────────────────── */
+    else if (strcasecmp(name, "Upper$") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            char *buf = strdup(args[0].sval);
+            for (int i = 0; buf[i]; i++) buf[i] = (char)toupper((unsigned char)buf[i]);
+            result = make_string(buf);
+            free(buf);
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Lower$") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            char *buf = strdup(args[0].sval);
+            for (int i = 0; buf[i]; i++) buf[i] = (char)tolower((unsigned char)buf[i]);
+            result = make_string(buf);
+            free(buf);
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Flip$") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            int len = (int)strlen(args[0].sval);
+            char *buf = malloc(len + 1);
+            for (int i = 0; i < len; i++) buf[i] = args[0].sval[len - 1 - i];
+            buf[len] = '\0';
+            result = make_string(buf);
+            free(buf);
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Space$") == 0) {
+        int n = to_int(args[0]);
+        if (n < 0) n = 0;
+        if (n > 65535) n = 65535;
+        char *buf = malloc(n + 1);
+        memset(buf, ' ', n);
+        buf[n] = '\0';
+        result = make_string(buf);
+        free(buf);
+    }
+    else if (strcasecmp(name, "String$") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            int n = to_int(args[1]);
+            if (n < 0) n = 0;
+            int slen = (int)strlen(args[0].sval);
+            char *buf = malloc(slen * n + 1);
+            buf[0] = '\0';
+            for (int i = 0; i < n; i++) strcat(buf, args[0].sval);
+            result = make_string(buf);
+            free(buf);
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Trim$") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            const char *s = args[0].sval;
+            while (*s == ' ') s++;
+            int len = (int)strlen(s);
+            while (len > 0 && s[len - 1] == ' ') len--;
+            char *buf = malloc(len + 1);
+            memcpy(buf, s, len);
+            buf[len] = '\0';
+            result = make_string(buf);
+            free(buf);
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Replace$") == 0) {
+        if (args[0].type == VAR_STRING && args[1].type == VAR_STRING &&
+            args[2].type == VAR_STRING && args[0].sval && args[1].sval && args[2].sval) {
+            const char *src = args[0].sval;
+            const char *old_s = args[1].sval;
+            const char *new_s = args[2].sval;
+            int old_len = (int)strlen(old_s);
+            int new_len = (int)strlen(new_s);
+            if (old_len == 0) {
+                result = make_string(src);
+            } else {
+                /* Count occurrences */
+                int count = 0;
+                const char *p = src;
+                while ((p = strstr(p, old_s)) != NULL) { count++; p += old_len; }
+                int result_len = (int)strlen(src) + count * (new_len - old_len);
+                char *buf = malloc(result_len + 1);
+                char *dst = buf;
+                p = src;
+                while (*p) {
+                    if (strncmp(p, old_s, old_len) == 0) {
+                        memcpy(dst, new_s, new_len);
+                        dst += new_len;
+                        p += old_len;
+                    } else {
+                        *dst++ = *p++;
+                    }
+                }
+                *dst = '\0';
+                result = make_string(buf);
+                free(buf);
+            }
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Hex$") == 0) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%X", (unsigned int)to_int(args[0]));
+        result = make_string(buf);
+    }
+    else if (strcasecmp(name, "Bin$") == 0) {
+        uint32_t val = (uint32_t)to_int(args[0]);
+        char buf[33];
+        int pos = 0;
+        if (val == 0) {
+            buf[pos++] = '0';
+        } else {
+            /* Find highest set bit */
+            int start = 31;
+            while (start > 0 && !(val & (1u << start))) start--;
+            for (int i = start; i >= 0; i--) {
+                buf[pos++] = (val & (1u << i)) ? '1' : '0';
+            }
+        }
+        buf[pos] = '\0';
+        result = make_string(buf);
+    }
+    /* ── Math Functions ─────────────────────────────────────────── */
+    else if (strcasecmp(name, "Atan") == 0) {
+        result = make_float(atan(to_number(args[0])));
+    }
+    else if (strcasecmp(name, "Asin") == 0) {
+        result = make_float(asin(to_number(args[0])));
+    }
+    else if (strcasecmp(name, "Acos") == 0) {
+        result = make_float(acos(to_number(args[0])));
+    }
+    else if (strcasecmp(name, "Deg") == 0) {
+        result = make_float(to_number(args[0]) * 180.0 / M_PI);
+    }
+    else if (strcasecmp(name, "Rad") == 0) {
+        result = make_float(to_number(args[0]) * M_PI / 180.0);
+    }
+    else if (strcasecmp(name, "Pi#") == 0) {
+        result = make_float(M_PI);
+    }
+    else if (strcasecmp(name, "Fix") == 0) {
+        double v = to_number(args[0]);
+        result = make_int((int32_t)(v >= 0 ? floor(v) : ceil(v)));
+    }
+    /* ── Memory Stubs ───────────────────────────────────────────── */
+    else if (strcasecmp(name, "Peek") == 0) {
+        result = make_int(0);  /* stub */
+    }
+    else if (strcasecmp(name, "Free") == 0) {
+        result = make_int(10000000);
+    }
+    /* ── Error Functions ────────────────────────────────────────── */
+    else if (strcasecmp(name, "Err") == 0) {
+        result = make_int(state->last_error);
+    }
+    else if (strcasecmp(name, "Erl") == 0) {
+        result = make_int(state->last_error_line);
+    }
+    else if (strcasecmp(name, "Err$") == 0) {
+        int err_num = argc > 0 ? to_int(args[0]) : state->last_error;
+        result = make_string(amos_get_error_message(err_num));
+    }
+    /* ── File I/O Functions ─────────────────────────────────────── */
+    else if (strcasecmp(name, "Eof") == 0) {
+        result = make_int(amos_file_eof(state, to_int(args[0])));
+    }
+    else if (strcasecmp(name, "Exist") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            result = make_int(amos_file_exist(state, args[0].sval));
+        } else {
+            result = make_int(0);
+        }
+    }
+    else if (strcasecmp(name, "Dir First$") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            char *r = amos_dir_first(state, args[0].sval);
+            result = make_string(r);
+            free(r);
+        } else {
+            result = make_string("");
+        }
+    }
+    else if (strcasecmp(name, "Dir Next$") == 0) {
+        char *r = amos_dir_next(state);
+        result = make_string(r);
+        free(r);
+    }
+    else if (strcasecmp(name, "Filelen") == 0) {
+        if (args[0].type == VAR_STRING && args[0].sval) {
+            result = make_int(amos_file_length(state, args[0].sval));
+        } else {
+            result = make_int(0);
+        }
     }
 
     /* Clean up argument strings */
@@ -1305,6 +1552,514 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                         }
                     }
 #endif
+                    break;
+                }
+
+                case TOK_SWAP: {
+                    /* Swap A,B — swap values of two variables */
+                    if (node->child_count >= 2 &&
+                        node->children[0]->type == NODE_VARIABLE &&
+                        node->children[1]->type == NODE_VARIABLE) {
+                        const char *name_a = node->children[0]->token.sval;
+                        const char *name_b = node->children[1]->token.sval;
+                        /* Read both values first */
+                        eval_result_t ra = eval_node(state, node->children[0]);
+                        eval_result_t rb = eval_node(state, node->children[1]);
+                        /* Write swapped */
+                        switch (rb.type) {
+                            case VAR_INTEGER: amos_var_set_int(state, name_a, rb.ival); break;
+                            case VAR_FLOAT:   amos_var_set_float(state, name_a, rb.fval); break;
+                            case VAR_STRING:  amos_var_set_string(state, name_a, rb.sval ? rb.sval : ""); break;
+                        }
+                        switch (ra.type) {
+                            case VAR_INTEGER: amos_var_set_int(state, name_b, ra.ival); break;
+                            case VAR_FLOAT:   amos_var_set_float(state, name_b, ra.fval); break;
+                            case VAR_STRING:  amos_var_set_string(state, name_b, ra.sval ? ra.sval : ""); break;
+                        }
+                        free_result(&ra);
+                        free_result(&rb);
+                    }
+                    break;
+                }
+
+                /* ── Error Handling Commands ─────────────────────────── */
+                case TOK_ON_ERROR_GOTO: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        int target = to_int(r);
+                        free_result(&r);
+                        if (target == 0) {
+                            /* On Error Goto 0 = disable error handler */
+                            state->on_error_line = -1;
+                        } else {
+                            int idx = find_line_index(state, target);
+                            if (idx < 0) {
+                                /* Try as label */
+                                if (node->children[0]->type == NODE_VARIABLE) {
+                                    idx = find_label(state, node->children[0]->token.sval);
+                                }
+                            }
+                            state->on_error_line = idx;
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_ON_ERROR_PROC: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        if (r.type == VAR_STRING && r.sval) {
+                            strncpy(state->on_error_proc, r.sval, sizeof(state->on_error_proc) - 1);
+                        } else if (node->children[0]->type == NODE_VARIABLE &&
+                                   node->children[0]->token.sval) {
+                            strncpy(state->on_error_proc, node->children[0]->token.sval,
+                                    sizeof(state->on_error_proc) - 1);
+                        }
+                        free_result(&r);
+                    }
+                    break;
+                }
+
+                case TOK_RESUME: {
+                    /* Resume — return to the line that caused the error */
+                    if (state->resume_line >= 0) {
+                        state->current_line = state->resume_line;
+                        state->resume_line = -1;
+                    }
+                    break;
+                }
+
+                case TOK_RESUME_NEXT: {
+                    /* Resume Next — continue at the line after the error */
+                    if (state->resume_line >= 0) {
+                        state->current_line = state->resume_line + 1;
+                        state->resume_line = -1;
+                    }
+                    break;
+                }
+
+                case TOK_RESUME_LABEL: {
+                    /* Resume label — jump to a specific label */
+                    if (node->child_count > 0 &&
+                        node->children[0]->type == NODE_VARIABLE &&
+                        node->children[0]->token.sval) {
+                        int idx = find_label(state, node->children[0]->token.sval);
+                        if (idx >= 0) {
+                            state->current_line = idx;
+                        }
+                    }
+                    state->resume_line = -1;
+                    break;
+                }
+
+                case TOK_TRAP: {
+                    state->trap_mode = true;
+                    break;
+                }
+
+                case TOK_ERROR: {
+                    /* Error N — deliberately trigger an error */
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        int err_num = to_int(r);
+                        free_result(&r);
+                        state->last_error = err_num;
+                        state->last_error_line = state->current_line;
+                        if (state->trap_mode) {
+                            /* Just set the error, continue */
+                        } else if (state->on_error_line >= 0) {
+                            state->resume_line = state->current_line;
+                            state->current_line = state->on_error_line;
+                        } else {
+                            fprintf(stderr, "Error %d: %s at line %d\n",
+                                    err_num, amos_get_error_message(err_num),
+                                    state->current_line + 1);
+                            state->running = false;
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_POKE: {
+                    /* Poke addr,value — stub, no-op */
+                    break;
+                }
+
+                /* ── Screen Manipulation Commands ──────────────────────── */
+
+                case TOK_SCREEN_COPY: {
+                    /* Screen Copy src,x1,y1,x2,y2 To dst,dx,dy */
+                    int args[8] = {0};
+                    int ai = 0;
+                    for (int i = 0; i < node->child_count && ai < 8; i++) {
+                        if (node->children[i]->type == NODE_COMMAND &&
+                            node->children[i]->token.type == TOK_TO)
+                            continue;
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[ai++] = to_int(r);
+                        free_result(&r);
+                    }
+                    if (ai >= 8) {
+                        amos_screen_copy(state, args[0], args[1], args[2], args[3], args[4],
+                                         args[5], args[6], args[7]);
+                    }
+                    break;
+                }
+
+                case TOK_GET_BLOCK: {
+                    /* Get Block id, x, y, w, h */
+                    int args[5] = {0};
+                    for (int i = 0; i < node->child_count && i < 5; i++) {
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[i] = to_int(r);
+                        free_result(&r);
+                    }
+                    if (node->child_count >= 5)
+                        amos_get_block(state, args[0], args[1], args[2], args[3], args[4]);
+                    break;
+                }
+
+                case TOK_PUT_BLOCK: {
+                    /* Put Block id, x, y */
+                    int args[3] = {0};
+                    for (int i = 0; i < node->child_count && i < 3; i++) {
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[i] = to_int(r);
+                        free_result(&r);
+                    }
+                    if (node->child_count >= 3)
+                        amos_put_block(state, args[0], args[1], args[2]);
+                    break;
+                }
+
+                case TOK_DEL_BLOCK: {
+                    /* Del Block id */
+                    if (node->child_count > 0) {
+                        eval_result_t id = eval_node(state, node->children[0]);
+                        amos_del_block(state, to_int(id));
+                        free_result(&id);
+                    }
+                    break;
+                }
+
+                case TOK_SCROLL: {
+                    /* Scroll dx, dy  OR  Scroll id, dx, dy (zone scroll) */
+                    if (node->child_count == 2) {
+                        eval_result_t dx_r = eval_node(state, node->children[0]);
+                        eval_result_t dy_r = eval_node(state, node->children[1]);
+                        amos_screen_scroll(state, to_int(dx_r), to_int(dy_r));
+                        free_result(&dx_r); free_result(&dy_r);
+                    } else if (node->child_count == 3) {
+                        eval_result_t id = eval_node(state, node->children[0]);
+                        eval_result_t dx_r = eval_node(state, node->children[1]);
+                        eval_result_t dy_r = eval_node(state, node->children[2]);
+                        amos_scroll_zone(state, to_int(id), to_int(dx_r), to_int(dy_r));
+                        free_result(&id); free_result(&dx_r); free_result(&dy_r);
+                    }
+                    break;
+                }
+
+                case TOK_DEF_SCROLL: {
+                    /* Def Scroll id, x1, y1, x2, y2 */
+                    int args[5] = {0};
+                    for (int i = 0; i < node->child_count && i < 5; i++) {
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[i] = to_int(r);
+                        free_result(&r);
+                    }
+                    if (node->child_count >= 5)
+                        amos_def_scroll(state, args[0], args[1], args[2], args[3], args[4]);
+                    break;
+                }
+
+                case TOK_SCREEN_TO_FRONT: {
+                    if (node->child_count > 0) {
+                        eval_result_t id = eval_node(state, node->children[0]);
+                        amos_screen_to_front(state, to_int(id));
+                        free_result(&id);
+                    }
+                    break;
+                }
+
+                case TOK_SCREEN_TO_BACK: {
+                    if (node->child_count > 0) {
+                        eval_result_t id = eval_node(state, node->children[0]);
+                        amos_screen_to_back(state, to_int(id));
+                        free_result(&id);
+                    }
+                    break;
+                }
+
+                case TOK_SCREEN_HIDE: {
+                    if (node->child_count > 0) {
+                        eval_result_t id = eval_node(state, node->children[0]);
+                        amos_screen_hide(state, to_int(id));
+                        free_result(&id);
+                    }
+                    break;
+                }
+
+                case TOK_SCREEN_SHOW: {
+                    if (node->child_count > 0) {
+                        eval_result_t id = eval_node(state, node->children[0]);
+                        amos_screen_show(state, to_int(id));
+                        free_result(&id);
+                    }
+                    break;
+                }
+
+                case TOK_PAINT: {
+                    /* Paint x, y[, color] */
+                    if (node->child_count >= 2) {
+                        eval_result_t px = eval_node(state, node->children[0]);
+                        eval_result_t py = eval_node(state, node->children[1]);
+                        amos_screen_t *scr = &state->screens[state->current_screen];
+                        int color = scr->ink_color;
+                        if (node->child_count >= 3) {
+                            eval_result_t c = eval_node(state, node->children[2]);
+                            color = to_int(c);
+                            free_result(&c);
+                        }
+                        amos_screen_paint(state, to_int(px), to_int(py), color);
+                        free_result(&px); free_result(&py);
+                    }
+                    break;
+                }
+
+                case TOK_POLYGON: {
+                    /* Polygon x1,y1 To x2,y2 To x3,y3 ... */
+                    int coords[AST_MAX_CHILDREN];
+                    int coord_count = 0;
+                    for (int i = 0; i < node->child_count; i++) {
+                        if (node->children[i]->type == NODE_COMMAND &&
+                            node->children[i]->token.type == TOK_TO)
+                            continue;
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        if (coord_count < AST_MAX_CHILDREN)
+                            coords[coord_count++] = to_int(r);
+                        free_result(&r);
+                    }
+                    int npts = coord_count / 2;
+                    if (npts >= 3) {
+                        amos_screen_t *scr = &state->screens[state->current_screen];
+                        amos_screen_polygon(state, coords, npts, scr->ink_color);
+                    }
+                    break;
+                }
+
+                /* ── File I/O Commands ──────────────────────────────── */
+
+                case TOK_OPEN_IN: {
+                    /* Open In channel,"path" */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        eval_result_t path = eval_node(state, node->children[1]);
+                        if (path.type == VAR_STRING && path.sval) {
+                            amos_file_open_in(state, to_int(ch), path.sval);
+                        }
+                        free_result(&ch); free_result(&path);
+                    }
+                    break;
+                }
+
+                case TOK_OPEN_OUT: {
+                    /* Open Out channel,"path" */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        eval_result_t path = eval_node(state, node->children[1]);
+                        if (path.type == VAR_STRING && path.sval) {
+                            amos_file_open_out(state, to_int(ch), path.sval);
+                        }
+                        free_result(&ch); free_result(&path);
+                    }
+                    break;
+                }
+
+                case TOK_APPEND: {
+                    /* Append channel,"path" */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        eval_result_t path = eval_node(state, node->children[1]);
+                        if (path.type == VAR_STRING && path.sval) {
+                            amos_file_append(state, to_int(ch), path.sval);
+                        }
+                        free_result(&ch); free_result(&path);
+                    }
+                    break;
+                }
+
+                case TOK_CLOSE: {
+                    /* Close channel */
+                    if (node->child_count > 0) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        amos_file_close(state, to_int(ch));
+                        free_result(&ch);
+                    }
+                    break;
+                }
+
+                case TOK_PRINT_FILE: {
+                    /* Print #channel, expr */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        int channel = to_int(ch);
+                        free_result(&ch);
+
+                        /* Concatenate all remaining children into output */
+                        char buf[1024] = {0};
+                        int bpos = 0;
+                        for (int i = 1; i < node->child_count; i++) {
+                            eval_result_t r = eval_node(state, node->children[i]);
+                            char tmp[256];
+                            switch (r.type) {
+                                case VAR_INTEGER:
+                                    snprintf(tmp, sizeof(tmp), "%d", r.ival);
+                                    break;
+                                case VAR_FLOAT:
+                                    snprintf(tmp, sizeof(tmp), "%g", r.fval);
+                                    break;
+                                case VAR_STRING:
+                                    snprintf(tmp, sizeof(tmp), "%s", r.sval ? r.sval : "");
+                                    break;
+                            }
+                            int len = (int)strlen(tmp);
+                            if (bpos + len < (int)sizeof(buf) - 1) {
+                                memcpy(buf + bpos, tmp, len);
+                                bpos += len;
+                            }
+                            free_result(&r);
+                        }
+                        buf[bpos] = '\0';
+                        amos_file_print(state, channel, buf);
+                    }
+                    break;
+                }
+
+                case TOK_INPUT_FILE: {
+                    /* Input #channel, var$ */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        int channel = to_int(ch);
+                        free_result(&ch);
+
+                        for (int i = 1; i < node->child_count; i++) {
+                            if (node->children[i]->type == NODE_VARIABLE) {
+                                const char *vname = node->children[i]->token.sval;
+                                int vlen = (int)strlen(vname);
+                                if (vlen > 0 && vname[vlen - 1] == '$') {
+                                    char *val = amos_file_input_str(state, channel);
+                                    amos_var_set_string(state, vname, val);
+                                    free(val);
+                                } else {
+                                    int val = amos_file_input_int(state, channel);
+                                    amos_var_set_int(state, vname, val);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_LINE_INPUT_FILE: {
+                    /* Line Input #channel, var$ */
+                    if (node->child_count >= 2) {
+                        eval_result_t ch = eval_node(state, node->children[0]);
+                        int channel = to_int(ch);
+                        free_result(&ch);
+
+                        if (node->children[1]->type == NODE_VARIABLE) {
+                            const char *vname = node->children[1]->token.sval;
+                            char *line = amos_file_input_line(state, channel);
+                            amos_var_set_string(state, vname, line);
+                            free(line);
+                        }
+                    }
+                    break;
+                }
+
+                case TOK_KILL: {
+                    /* Kill "path" */
+                    if (node->child_count > 0) {
+                        eval_result_t path = eval_node(state, node->children[0]);
+                        if (path.type == VAR_STRING && path.sval) {
+                            amos_file_kill(state, path.sval);
+                        }
+                        free_result(&path);
+                    }
+                    break;
+                }
+
+                case TOK_RENAME: {
+                    /* Rename "old" To "new" (or Rename "old","new") */
+                    if (node->child_count >= 2) {
+                        /* Skip TOK_TO separator nodes */
+                        eval_result_t old_r = {0};
+                        eval_result_t new_r = {0};
+                        int arg_idx = 0;
+                        for (int i = 0; i < node->child_count; i++) {
+                            if (node->children[i]->type == NODE_COMMAND &&
+                                node->children[i]->token.type == TOK_TO)
+                                continue;
+                            eval_result_t r = eval_node(state, node->children[i]);
+                            if (arg_idx == 0) old_r = r;
+                            else if (arg_idx == 1) new_r = r;
+                            else free_result(&r);
+                            arg_idx++;
+                        }
+                        if (old_r.type == VAR_STRING && old_r.sval &&
+                            new_r.type == VAR_STRING && new_r.sval) {
+                            amos_file_rename(state, old_r.sval, new_r.sval);
+                        }
+                        free_result(&old_r);
+                        free_result(&new_r);
+                    }
+                    break;
+                }
+
+                case TOK_MKDIR: {
+                    /* Mkdir "path" */
+                    if (node->child_count > 0) {
+                        eval_result_t path = eval_node(state, node->children[0]);
+                        if (path.type == VAR_STRING && path.sval) {
+                            amos_file_mkdir(state, path.sval);
+                        }
+                        free_result(&path);
+                    }
+                    break;
+                }
+
+                case TOK_LOAD: {
+                    /* Load "filename",bank_num
+                     * Routes to IFF loader or bank loader based on content/extension */
+                    if (node->child_count >= 1) {
+                        eval_result_t fn = eval_node(state, node->children[0]);
+                        int bank_num = -1;
+                        if (node->child_count >= 2) {
+                            eval_result_t bn = eval_node(state, node->children[1]);
+                            bank_num = to_int(bn);
+                            free_result(&bn);
+                        }
+                        if (fn.type == VAR_STRING && fn.sval) {
+                            /* Check extension to decide loader */
+                            const char *f = fn.sval;
+                            size_t flen = strlen(f);
+                            bool is_abk = (flen >= 4 &&
+                                (strcasecmp(f + flen - 4, ".abk") == 0));
+                            bool is_iff = (flen >= 4 &&
+                                (strcasecmp(f + flen - 4, ".iff") == 0));
+                            if (is_abk) {
+                                amos_exec_load_bank(state, f, bank_num);
+                            } else if (is_iff) {
+                                amos_exec_load_iff(state, f, bank_num >= 0 ? bank_num : state->current_screen);
+                            } else {
+                                /* Try bank loader first (checks magic), fall back to IFF */
+                                if (amos_load_sprite_bank(state, f) != 0) {
+                                    amos_exec_load_iff(state, f, bank_num >= 0 ? bank_num : state->current_screen);
+                                }
+                            }
+                        }
+                        free_result(&fn);
+                    }
                     break;
                 }
 

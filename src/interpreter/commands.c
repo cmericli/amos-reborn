@@ -28,6 +28,14 @@ amos_state_t *amos_create(void)
     /* Seed RNG */
     srand((unsigned)time(NULL));
 
+    /* Error handling defaults */
+    state->on_error_line = -1;
+    state->on_error_proc[0] = '\0';
+    state->trap_mode = false;
+    state->last_error = 0;
+    state->last_error_line = 0;
+    state->resume_line = -1;
+
     return state;
 }
 
@@ -63,6 +71,9 @@ void amos_destroy(amos_state_t *state)
     for (int i = 0; i < AMOS_MAX_AMAL_CHANNELS; i++) {
         free(state->amal[i].program);
     }
+
+    /* Close file channels */
+    amos_file_close_all(state);
 
     free(state);
 }

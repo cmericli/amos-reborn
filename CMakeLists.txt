@@ -49,6 +49,7 @@ set(INTERPRETER_SOURCES
     src/interpreter/commands.c
     src/interpreter/amal.c
     src/interpreter/amos_loader.c
+    src/interpreter/file_io.c
 )
 
 set(DISPLAY_SOURCES
@@ -60,6 +61,8 @@ set(DISPLAY_SOURCES
     src/display/sprites.c
     src/display/iff_loader.c
     src/display/iff_commands.c
+    src/display/bank_loader.c
+    src/display/bank_commands.c
 )
 
 set(AUDIO_SOURCES
@@ -93,6 +96,10 @@ set(PLATFORM_SOURCES
     src/platform/input.c
 )
 
+set(EDITOR_SOURCES
+    src/editor/editor.c
+)
+
 set(ALL_SOURCES
     src/main.c
     ${INTERPRETER_SOURCES}
@@ -100,6 +107,7 @@ set(ALL_SOURCES
     ${AUDIO_SOURCES}
     ${HAL_SOURCES}
     ${PLATFORM_SOURCES}
+    ${EDITOR_SOURCES}
 )
 
 # Main executable
@@ -134,6 +142,7 @@ add_executable(amos-test
     tests/test_executor.c
     tests/test_expressions.c
     tests/test_iff.c
+    tests/test_bank_loader.c
     ${INTERPRETER_SOURCES}
     src/display/screen.c
     src/display/font_topaz.c
@@ -141,6 +150,8 @@ add_executable(amos-test
     src/display/sprites.c
     src/display/iff_loader.c
     src/display/iff_commands.c
+    src/display/bank_loader.c
+    src/display/bank_commands.c
     src/audio/paula.c
     src/audio/effects.c
     src/audio/tracker.c

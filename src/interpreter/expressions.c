@@ -85,10 +85,19 @@ static const builtin_func_t builtins[] = {
     {"Instr",  2, 3},
     {"Upper$", 1, 1},
     {"Lower$", 1, 1},
+    {"Flip$",  1, 1},
+    {"Trim$",  1, 1},
+    {"Replace$", 3, 3},
     {"String$",2, 2},
     {"Space$", 1, 1},
     {"Hex$",   1, 2},
     {"Bin$",   1, 2},
+    {"Deg",    1, 1},
+    {"Rad",    1, 1},
+    {"Peek",   1, 1},
+    {"Free",   0, 0},
+    {"Err",    0, 0},
+    {"Erl",    0, 0},
     /* Screen functions */
     {"Screen Width",  0, 0},
     {"Screen Height", 0, 0},
@@ -119,6 +128,12 @@ static const builtin_func_t builtins[] = {
     {"Y Sprite",      1, 1},
     {"X Bob",         1, 1},
     {"Y Bob",         1, 1},
+    /* File I/O functions */
+    {"Eof",           1, 1},
+    {"Exist",         1, 1},
+    {"Dir First$",    1, 1},
+    {"Dir Next$",     0, 0},
+    {"Filelen",       1, 1},
     {NULL, 0, 0}
 };
 
@@ -128,6 +143,16 @@ static bool is_builtin_function(const char *name)
         if (strcasecmp(name, builtins[i].name) == 0)
             return true;
     }
+    return false;
+}
+
+/* Check if identifier is a zero-arg builtin that can be used without parens */
+static bool is_noarg_builtin(const char *name)
+{
+    if (strcasecmp(name, "Err") == 0) return true;
+    if (strcasecmp(name, "Erl") == 0) return true;
+    if (strcasecmp(name, "Free") == 0) return true;
+    if (strcasecmp(name, "Pi#") == 0) return true;
     return false;
 }
 
@@ -219,6 +244,62 @@ static amos_node_t *parse_primary(amos_token_t *tokens, int *pos, int count)
     /* Identifier: variable, array access, or function call */
     if (tok->type == TOK_IDENTIFIER) {
         char *name = tok->sval;
+
+        /* Multi-word function: Dir First$(pattern) / Dir Next$() */
+        if (strcasecmp(name, "Dir") == 0 && *pos + 1 < count &&
+            tokens[*pos + 1].type == TOK_IDENTIFIER) {
+            char combined[64];
+            snprintf(combined, sizeof(combined), "Dir %s", tokens[*pos + 1].sval);
+            if (is_builtin_function(combined)) {
+                amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+                node->token = *tok;
+                node->token.sval = strdup(combined);
+                (*pos) += 2;  /* skip "Dir" and "First$"/"Next$" */
+                /* Parse arguments in parens if present */
+                if (*pos < count && tokens[*pos].type == TOK_LPAREN) {
+                    (*pos)++;
+                    while (*pos < count && tokens[*pos].type != TOK_RPAREN) {
+                        amos_node_t *arg = parse_expr(tokens, pos, count, 0);
+                        if (arg) add_child(node, arg);
+                        if (*pos < count && tokens[*pos].type == TOK_COMMA)
+                            (*pos)++;
+                    }
+                    if (*pos < count && tokens[*pos].type == TOK_RPAREN)
+                        (*pos)++;
+                }
+                return node;
+            }
+        }
+
+        /* Zero-arg builtins that work without parens (Err, Erl, Free, Pi#) */
+        if (is_noarg_builtin(name) &&
+            !(*pos + 1 < count && tokens[*pos + 1].type == TOK_LPAREN)) {
+            amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+            node->token = *tok;
+            node->token.sval = strdup(name);
+            (*pos)++;
+            return node;
+        }
+
+        /* Err$ — special: can be used as Err$ or Err$(n) */
+        if (strcasecmp(name, "Err$") == 0) {
+            amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+            node->token = *tok;
+            node->token.sval = strdup(name);
+            (*pos)++;
+            if (*pos < count && tokens[*pos].type == TOK_LPAREN) {
+                (*pos)++;  /* skip ( */
+                while (*pos < count && tokens[*pos].type != TOK_RPAREN) {
+                    amos_node_t *arg = parse_expr(tokens, pos, count, 0);
+                    if (arg) add_child(node, arg);
+                    if (*pos < count && tokens[*pos].type == TOK_COMMA)
+                        (*pos)++;
+                }
+                if (*pos < count && tokens[*pos].type == TOK_RPAREN)
+                    (*pos)++;
+            }
+            return node;
+        }
 
         /* Check for built-in function */
         if (is_builtin_function(name) && *pos + 1 < count &&

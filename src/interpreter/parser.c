@@ -329,7 +329,29 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
     /* Statement keywords */
     (*pos)++;
     switch (tok->type) {
-        case TOK_PRINT:     return parse_print(tokens, pos, count);
+        case TOK_PRINT: {
+            /* Check for Print #channel — file I/O */
+            if (peek_is(tokens, *pos, count, TOK_HASH)) {
+                (*pos)++;  /* skip # */
+                amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+                n->token.type = TOK_PRINT_FILE;
+                /* channel number */
+                amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+                add_child(n, ch);
+                match(tokens, pos, count, TOK_COMMA);
+                /* expression(s) to print */
+                while (!at_end(tokens, *pos, count)) {
+                    amos_node_t *expr = amos_parse_expression(tokens, pos, count);
+                    if (!expr) break;
+                    add_child(n, expr);
+                    if (!match(tokens, pos, count, TOK_SEMICOLON)) {
+                        match(tokens, pos, count, TOK_COMMA);
+                    }
+                }
+                return n;
+            }
+            return parse_print(tokens, pos, count);
+        }
         case TOK_LET:       return parse_let(tokens, pos, count, true);
         case TOK_IF:        return parse_if(tokens, pos, count);
         case TOK_FOR:       return parse_for(tokens, pos, count);
@@ -403,6 +425,29 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
             return n;
         }
         case TOK_RESTORE:   return alloc_node(NODE_RESTORE, tok->line);
+        case TOK_SWAP: {
+            /* Swap A,B — parse two variable names */
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_SWAP;
+            /* First variable */
+            if (*pos < count && tokens[*pos].type == TOK_IDENTIFIER) {
+                amos_node_t *var = alloc_node(NODE_VARIABLE, tokens[*pos].line);
+                var->token = tokens[*pos];
+                var->token.sval = strdup(tokens[*pos].sval);
+                add_child(n, var);
+                (*pos)++;
+            }
+            match(tokens, pos, count, TOK_COMMA);
+            /* Second variable */
+            if (*pos < count && tokens[*pos].type == TOK_IDENTIFIER) {
+                amos_node_t *var = alloc_node(NODE_VARIABLE, tokens[*pos].line);
+                var->token = tokens[*pos];
+                var->token.sval = strdup(tokens[*pos].sval);
+                add_child(n, var);
+                (*pos)++;
+            }
+            return n;
+        }
 
         /* Procedure definition (Pro only) */
         case TOK_PROCEDURE: {
@@ -441,6 +486,98 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
             n->token.type = TOK_END_IF;
             return n;
         }
+
+        /* File I/O commands */
+        case TOK_INPUT: {
+            /* Check for Input #channel — file I/O */
+            if (peek_is(tokens, *pos, count, TOK_HASH)) {
+                (*pos)++;  /* skip # */
+                amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+                n->token.type = TOK_INPUT_FILE;
+                /* channel number */
+                amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+                add_child(n, ch);
+                match(tokens, pos, count, TOK_COMMA);
+                /* target variable(s) */
+                while (!at_end(tokens, *pos, count)) {
+                    if (tokens[*pos].type == TOK_IDENTIFIER) {
+                        amos_node_t *var = alloc_node(NODE_VARIABLE, tokens[*pos].line);
+                        var->token = tokens[*pos];
+                        var->token.sval = strdup(tokens[*pos].sval);
+                        add_child(n, var);
+                        (*pos)++;
+                    }
+                    if (!match(tokens, pos, count, TOK_COMMA)) break;
+                }
+                return n;
+            }
+            return parse_command(tokens, pos, count, TOK_INPUT);
+        }
+        case TOK_LINE_INPUT_FILE: {
+            /* Line Input #channel, var$ */
+            match(tokens, pos, count, TOK_HASH);  /* optional # */
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_LINE_INPUT_FILE;
+            /* channel number */
+            amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+            add_child(n, ch);
+            match(tokens, pos, count, TOK_COMMA);
+            /* target variable */
+            if (*pos < count && tokens[*pos].type == TOK_IDENTIFIER) {
+                amos_node_t *var = alloc_node(NODE_VARIABLE, tokens[*pos].line);
+                var->token = tokens[*pos];
+                var->token.sval = strdup(tokens[*pos].sval);
+                add_child(n, var);
+                (*pos)++;
+            }
+            return n;
+        }
+        case TOK_OPEN_IN: {
+            /* Open In channel,"path" */
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_OPEN_IN;
+            amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+            add_child(n, ch);
+            match(tokens, pos, count, TOK_COMMA);
+            amos_node_t *path = amos_parse_expression(tokens, pos, count);
+            add_child(n, path);
+            return n;
+        }
+        case TOK_OPEN_OUT: {
+            /* Open Out channel,"path" */
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_OPEN_OUT;
+            amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+            add_child(n, ch);
+            match(tokens, pos, count, TOK_COMMA);
+            amos_node_t *path = amos_parse_expression(tokens, pos, count);
+            add_child(n, path);
+            return n;
+        }
+        case TOK_APPEND: {
+            /* Append channel,"path" */
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_APPEND;
+            amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+            add_child(n, ch);
+            match(tokens, pos, count, TOK_COMMA);
+            amos_node_t *path = amos_parse_expression(tokens, pos, count);
+            add_child(n, path);
+            return n;
+        }
+        case TOK_CLOSE: {
+            /* Close channel (or Close #channel) */
+            match(tokens, pos, count, TOK_HASH);  /* optional # */
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_CLOSE;
+            amos_node_t *ch = amos_parse_expression(tokens, pos, count);
+            add_child(n, ch);
+            return n;
+        }
+        case TOK_KILL:
+        case TOK_RENAME:
+        case TOK_MKDIR:
+            return parse_command(tokens, pos, count, tok->type);
 
         /* All other commands: parse as generic command with arguments */
         case TOK_CLS:
@@ -488,6 +625,16 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         case TOK_SAVE:
         case TOK_RAINBOW:
         case TOK_COPPER:
+        case TOK_SCREEN_COPY:
+        case TOK_GET_BLOCK:
+        case TOK_PUT_BLOCK:
+        case TOK_DEL_BLOCK:
+        case TOK_SCROLL:
+        case TOK_DEF_SCROLL:
+        case TOK_SCREEN_TO_FRONT:
+        case TOK_SCREEN_TO_BACK:
+        case TOK_SCREEN_HIDE:
+        case TOK_SCREEN_SHOW:
         case TOK_SCREEN_SWAP:
         case TOK_DOUBLE_BUFFER:
         case TOK_AUTOBACK:
@@ -497,6 +644,14 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         case TOK_RANDOMIZE:
         case TOK_MODE:
         case TOK_SCREEN_MODE:
+        case TOK_ON_ERROR_GOTO:
+        case TOK_ON_ERROR_PROC:
+        case TOK_RESUME:
+        case TOK_RESUME_NEXT:
+        case TOK_RESUME_LABEL:
+        case TOK_TRAP:
+        case TOK_ERROR:
+        case TOK_POKE:
             return parse_command(tokens, pos, count, tok->type);
 
         /* Identifier — could be assignment or procedure call */

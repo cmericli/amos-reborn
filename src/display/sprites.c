@@ -16,20 +16,32 @@
 
 /* ── Procedural Sprite Image Bank ────────────────────────────────── */
 
-/* Each sprite image: 16x16 pixels, stored as uint32_t RGBA */
+/* Each sprite image: variable size, stored as uint32_t RGBA */
 #define SPRITE_IMG_W 16
 #define SPRITE_IMG_H 16
 #define MAX_SPRITE_IMAGES 64
 
 typedef struct {
-    uint32_t pixels[SPRITE_IMG_W * SPRITE_IMG_H];
+    uint32_t pixels[SPRITE_IMG_W * SPRITE_IMG_H];  /* used for procedural sprites */
     int width, height;
     int hot_x, hot_y;   /* hotspot (center by default) */
 } sprite_image_t;
 
+/* Dynamic sprite images from loaded banks */
+typedef struct {
+    uint32_t *pixels;   /* dynamically allocated RGBA pixel data */
+    int width, height;
+    int hot_x, hot_y;
+} bank_sprite_image_t;
+
 static sprite_image_t g_sprite_images[MAX_SPRITE_IMAGES];
 static int g_sprite_image_count = 0;
 static bool g_sprites_initialized = false;
+
+/* Bank-loaded sprite images (override procedural ones when loaded) */
+static bank_sprite_image_t *g_bank_images = NULL;
+static int g_bank_image_count = 0;
+static bool g_bank_loaded = false;
 
 /* Generate a simple colored shape for a sprite image */
 static void generate_sprite_image(int index, uint32_t color, int shape)
@@ -119,6 +131,65 @@ void amos_sprites_init(amos_state_t *state)
     g_sprites_initialized = true;
 }
 
+/* ── Bank Loading ───────────────────────────────────────────────── */
+
+void amos_sprites_load_bank(amos_state_t *state, uint32_t *images[],
+                             int *widths, int *heights,
+                             int *hot_xs, int *hot_ys, int count)
+{
+    (void)state;
+
+    /* Free any previously loaded bank images */
+    if (g_bank_images) {
+        for (int i = 0; i < g_bank_image_count; i++) {
+            free(g_bank_images[i].pixels);
+        }
+        free(g_bank_images);
+    }
+
+    g_bank_images = calloc(count, sizeof(bank_sprite_image_t));
+    if (!g_bank_images) {
+        g_bank_image_count = 0;
+        g_bank_loaded = false;
+        return;
+    }
+
+    g_bank_image_count = count;
+    g_bank_loaded = true;
+
+    for (int i = 0; i < count; i++) {
+        g_bank_images[i].pixels = images[i];  /* take ownership */
+        g_bank_images[i].width = widths[i];
+        g_bank_images[i].height = heights[i];
+        g_bank_images[i].hot_x = hot_xs[i];
+        g_bank_images[i].hot_y = hot_ys[i];
+    }
+}
+
+uint32_t *amos_sprites_get_image(amos_state_t *state, int index,
+                                  int *width, int *height)
+{
+    (void)state;
+
+    if (g_bank_loaded && index >= 1 && index <= g_bank_image_count) {
+        /* Bank images are 1-based (image 1 = index 0 in array) */
+        bank_sprite_image_t *img = &g_bank_images[index - 1];
+        if (width) *width = img->width;
+        if (height) *height = img->height;
+        return img->pixels;
+    }
+
+    /* Fall back to procedural images */
+    if (index >= 0 && index < g_sprite_image_count) {
+        sprite_image_t *img = &g_sprite_images[index];
+        if (width) *width = img->width;
+        if (height) *height = img->height;
+        return img->pixels;
+    }
+
+    return NULL;
+}
+
 /* ── Sprite/Bob Commands ─────────────────────────────────────────── */
 
 void amos_sprite_set(amos_state_t *state, int id, int x, int y, int image)
@@ -131,7 +202,13 @@ void amos_sprite_set(amos_state_t *state, int id, int x, int y, int image)
     spr->visible = true;
     spr->x = x;
     spr->y = y;
-    if (image >= 0 && image < g_sprite_image_count) {
+
+    /* Use bank images if loaded (1-based indexing) */
+    if (g_bank_loaded && image >= 1 && image <= g_bank_image_count) {
+        spr->image = image;
+        spr->hot_x = g_bank_images[image - 1].hot_x;
+        spr->hot_y = g_bank_images[image - 1].hot_y;
+    } else if (image >= 0 && image < g_sprite_image_count) {
         spr->image = image;
         spr->hot_x = g_sprite_images[image].hot_x;
         spr->hot_y = g_sprite_images[image].hot_y;
@@ -160,7 +237,13 @@ void amos_bob_set(amos_state_t *state, int id, int x, int y, int image)
     bob->x = x;
     bob->y = y;
     bob->screen_id = state->current_screen;
-    if (image >= 0 && image < g_sprite_image_count) {
+
+    /* Use bank images if loaded (1-based indexing) */
+    if (g_bank_loaded && image >= 1 && image <= g_bank_image_count) {
+        bob->image = image;
+        bob->hot_x = g_bank_images[image - 1].hot_x;
+        bob->hot_y = g_bank_images[image - 1].hot_y;
+    } else if (image >= 0 && image < g_sprite_image_count) {
         bob->image = image;
         bob->hot_x = g_sprite_images[image].hot_x;
         bob->hot_y = g_sprite_images[image].hot_y;
@@ -183,19 +266,43 @@ void amos_bob_off(amos_state_t *state, int id)
 static void render_sprite_image(uint32_t *output, int out_w, int out_h,
                                 int img_idx, int x, int y)
 {
-    if (img_idx <= 0 || img_idx >= g_sprite_image_count) return;
+    if (img_idx <= 0) return;
 
-    sprite_image_t *img = &g_sprite_images[img_idx];
-    int sx = x - img->hot_x;
-    int sy = y - img->hot_y;
+    uint32_t *pixels = NULL;
+    int img_w = 0, img_h = 0;
+    int hx = 0, hy = 0;
 
-    for (int iy = 0; iy < img->height; iy++) {
+    /* Try bank images first (1-based) */
+    if (g_bank_loaded && img_idx >= 1 && img_idx <= g_bank_image_count) {
+        bank_sprite_image_t *bimg = &g_bank_images[img_idx - 1];
+        pixels = bimg->pixels;
+        img_w = bimg->width;
+        img_h = bimg->height;
+        hx = bimg->hot_x;
+        hy = bimg->hot_y;
+    } else if (img_idx < g_sprite_image_count) {
+        sprite_image_t *img = &g_sprite_images[img_idx];
+        pixels = img->pixels;
+        img_w = img->width;
+        img_h = img->height;
+        hx = img->hot_x;
+        hy = img->hot_y;
+    } else {
+        return;
+    }
+
+    if (!pixels || img_w <= 0 || img_h <= 0) return;
+
+    int sx = x - hx;
+    int sy = y - hy;
+
+    for (int iy = 0; iy < img_h; iy++) {
         int dy = sy + iy;
         if (dy < 0 || dy >= out_h) continue;
-        for (int ix = 0; ix < img->width; ix++) {
+        for (int ix = 0; ix < img_w; ix++) {
             int dx = sx + ix;
             if (dx < 0 || dx >= out_w) continue;
-            uint32_t pixel = img->pixels[iy * img->width + ix];
+            uint32_t pixel = pixels[iy * img_w + ix];
             uint32_t alpha = (pixel >> 24) & 0xFF;
             if (alpha > 0) {
                 output[dy * out_w + dx] = pixel;
@@ -225,14 +332,29 @@ void amos_sprites_render(amos_state_t *state, uint32_t *output, int out_w, int o
 
 /* ── Collision Detection ─────────────────────────────────────────── */
 
+/* Get the pixel dimensions of a sprite/bob image */
+static void get_image_size(int img_idx, int *w, int *h)
+{
+    if (g_bank_loaded && img_idx >= 1 && img_idx <= g_bank_image_count) {
+        *w = g_bank_images[img_idx - 1].width;
+        *h = g_bank_images[img_idx - 1].height;
+    } else if (img_idx >= 0 && img_idx < g_sprite_image_count) {
+        *w = g_sprite_images[img_idx].width;
+        *h = g_sprite_images[img_idx].height;
+    } else {
+        *w = SPRITE_IMG_W;
+        *h = SPRITE_IMG_H;
+    }
+}
+
 int amos_sprite_col(amos_state_t *state, int id)
 {
     if (id < 0 || id >= AMOS_MAX_SPRITES) return 0;
     amos_sprite_t *a = &state->sprites[id];
     if (!a->active) return 0;
 
-    /* Simple bounding box collision against all other sprites */
-    int aw = SPRITE_IMG_W, ah = SPRITE_IMG_H;
+    int aw, ah;
+    get_image_size(a->image, &aw, &ah);
     int ax1 = a->x - a->hot_x, ay1 = a->y - a->hot_y;
     int ax2 = ax1 + aw, ay2 = ay1 + ah;
 
@@ -241,8 +363,10 @@ int amos_sprite_col(amos_state_t *state, int id)
         amos_sprite_t *b = &state->sprites[i];
         if (!b->active) continue;
 
+        int bw, bh;
+        get_image_size(b->image, &bw, &bh);
         int bx1 = b->x - b->hot_x, by1 = b->y - b->hot_y;
-        int bx2 = bx1 + aw, by2 = by1 + ah;
+        int bx2 = bx1 + bw, by2 = by1 + bh;
 
         if (ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1)
             return i + 1;  /* AMOS returns 1-based collision target, 0 = none */
@@ -256,7 +380,8 @@ int amos_bob_col(amos_state_t *state, int id)
     amos_bob_t *a = &state->bobs[id];
     if (!a->active) return 0;
 
-    int aw = SPRITE_IMG_W, ah = SPRITE_IMG_H;
+    int aw, ah;
+    get_image_size(a->image, &aw, &ah);
     int ax1 = a->x - a->hot_x, ay1 = a->y - a->hot_y;
     int ax2 = ax1 + aw, ay2 = ay1 + ah;
 
@@ -265,8 +390,10 @@ int amos_bob_col(amos_state_t *state, int id)
         amos_bob_t *b = &state->bobs[i];
         if (!b->active) continue;
 
+        int bw, bh;
+        get_image_size(b->image, &bw, &bh);
         int bx1 = b->x - b->hot_x, by1 = b->y - b->hot_y;
-        int bx2 = bx1 + aw, by2 = by1 + ah;
+        int bx2 = bx1 + bw, by2 = by1 + bh;
 
         if (ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1)
             return i + 1;
