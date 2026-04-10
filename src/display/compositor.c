@@ -58,7 +58,7 @@ void compositor_render(amos_state_t *state, uint32_t *output, int out_w, int out
                 if (sx < 0 || sx >= scr->width || dx < 0 || dx >= out_w) continue;
 
                 uint32_t pixel = scr->pixels[sy * scr->width + sx];
-                uint8_t alpha = pixel & 0xFF;
+                uint8_t alpha = (pixel >> 24) & 0xFF;
 
                 if (alpha > 0) {
                     /* Color 0 is transparent in multi-screen compositing */

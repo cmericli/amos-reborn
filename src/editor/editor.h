@@ -13,7 +13,7 @@
 /* ── AMOS 1.3 Editor Palette ($RGB Amiga format) ───────────────── */
 
 #define EDITOR_COLOR_BLACK     AMOS_RGBA(0x00, 0x00, 0x00, 0xFF)  /* $000 */
-#define EDITOR_COLOR_DARK_BLUE AMOS_RGBA(0x00, 0x22, 0xAA, 0xFF)  /* $017 boosted for modern displays */
+#define EDITOR_COLOR_DARK_BLUE AMOS_RGBA(0x00, 0x22, 0x88, 0xFF)  /* $017 — authentic AMOS dark blue */
 #define EDITOR_COLOR_CYAN      AMOS_RGBA(0x00, 0xEE, 0xCC, 0xFF)  /* $0EC */
 #define EDITOR_COLOR_ORANGE    AMOS_RGBA(0xDD, 0x66, 0x00, 0xFF)  /* $C40 boosted */
 #define EDITOR_COLOR_WHITE     AMOS_RGBA(0xFF, 0xFF, 0xFF, 0xFF)  /* status text */

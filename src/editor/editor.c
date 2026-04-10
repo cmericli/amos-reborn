@@ -682,19 +682,7 @@ static void editor_handle_key(amos_state_t *state, SDL_Keysym key)
                 return;
 
             default:
-                /* Printable character */
-                if (key.sym >= 32 && key.sym < 127 && !ctrl) {
-                    int len = (int)strlen(g_editor.direct_line);
-                    if (len < EDITOR_DIRECT_LEN - 1) {
-                        char ch = (char)key.sym;
-                        if (shift && ch >= 'a' && ch <= 'z') ch -= 32;
-                        memmove(g_editor.direct_line + g_editor.direct_cursor + 1,
-                                g_editor.direct_line + g_editor.direct_cursor,
-                                len - g_editor.direct_cursor + 1);
-                        g_editor.direct_line[g_editor.direct_cursor] = ch;
-                        g_editor.direct_cursor++;
-                    }
-                }
+                /* Printable chars handled by SDL_TEXTINPUT */
                 return;
         }
     }
@@ -835,27 +823,9 @@ static void editor_handle_key(amos_state_t *state, SDL_Keysym key)
             break;
     }
 
-    /* Printable characters (not handled above, not ctrl combos) */
-    if (!ctrl && key.sym >= 32 && key.sym < 127) {
-        char ch = (char)key.sym;
-        if (shift) {
-            /* Handle shifted characters */
-            if (ch >= 'a' && ch <= 'z') {
-                ch -= 32;
-            } else {
-                /* Shift symbols mapping */
-                static const char unshifted[] = "1234567890-=[]\\;',./`";
-                static const char shifted[]   = "!@#$%^&*()_+{}|:\"<>?~";
-                for (int i = 0; unshifted[i]; i++) {
-                    if (ch == unshifted[i]) {
-                        ch = shifted[i];
-                        break;
-                    }
-                }
-            }
-        }
-        editor_insert_char_at_cursor(ch);
-    }
+    /* Printable characters are handled by SDL_TEXTINPUT event, not here.
+     * SDL_KEYDOWN only handles special keys (arrows, F-keys, Enter, etc.) */
+    (void)shift;
 }
 
 /* ── Initialization ────────────────────────────────────────────── */
