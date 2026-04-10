@@ -652,7 +652,90 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         case TOK_TRAP:
         case TOK_ERROR:
         case TOK_POKE:
+        case TOK_DOKE:
+        case TOK_LOKE:
+        case TOK_SET_LINE:
+        case TOK_SET_PATTERN:
+        case TOK_RESERVE_AS_WORK:
+        case TOK_RESERVE_AS_DATA:
             return parse_command(tokens, pos, count, tok->type);
+
+        case TOK_CLIP:
+            return parse_command(tokens, pos, count, TOK_CLIP);
+
+        /* Select expr */
+        case TOK_SELECT: {
+            amos_node_t *n = alloc_node(NODE_SELECT, tok->line);
+            add_child(n, amos_parse_expression(tokens, pos, count));
+            return n;
+        }
+
+        /* Case value[,value,...] */
+        case TOK_CASE: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_CASE;
+            while (!at_end(tokens, *pos, count)) {
+                amos_node_t *val = amos_parse_expression(tokens, pos, count);
+                if (val) add_child(n, val);
+                if (!match(tokens, pos, count, TOK_COMMA)) break;
+            }
+            return n;
+        }
+
+        case TOK_DEFAULT: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_DEFAULT;
+            return n;
+        }
+
+        case TOK_END_SELECT: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_END_SELECT;
+            return n;
+        }
+
+        /* Every n Gosub label / Every n Proc name */
+        case TOK_EVERY: {
+            amos_node_t *n = alloc_node(NODE_EVERY, tok->line);
+            /* Parse interval */
+            add_child(n, amos_parse_expression(tokens, pos, count));
+            /* Expect Gosub or Proc */
+            if (match(tokens, pos, count, TOK_GOSUB)) {
+                n->token.type = TOK_GOSUB;
+                add_child(n, amos_parse_expression(tokens, pos, count));
+            } else if (match(tokens, pos, count, TOK_PROC)) {
+                n->token.type = TOK_PROC;
+                if (*pos < count && tokens[*pos].type == TOK_IDENTIFIER) {
+                    amos_node_t *pn = alloc_node(NODE_VARIABLE, tokens[*pos].line);
+                    pn->token.sval = strdup(tokens[*pos].sval);
+                    add_child(n, pn);
+                    (*pos)++;
+                }
+            }
+            return n;
+        }
+
+        /* On expr Goto/Gosub label1,label2,... */
+        case TOK_ON: {
+            amos_node_t *n = alloc_node(NODE_ON_BRANCH, tok->line);
+            /* Parse the expression */
+            add_child(n, amos_parse_expression(tokens, pos, count));
+            /* Expect Goto or Gosub */
+            if (match(tokens, pos, count, TOK_GOTO)) {
+                n->token.type = TOK_GOTO;
+            } else if (match(tokens, pos, count, TOK_GOSUB)) {
+                n->token.type = TOK_GOSUB;
+            } else {
+                return n;  /* malformed */
+            }
+            /* Parse comma-separated list of targets */
+            while (!at_end(tokens, *pos, count)) {
+                amos_node_t *target = amos_parse_expression(tokens, pos, count);
+                if (target) add_child(n, target);
+                if (!match(tokens, pos, count, TOK_COMMA)) break;
+            }
+            return n;
+        }
 
         /* Identifier — could be assignment or procedure call */
         case TOK_IDENTIFIER:

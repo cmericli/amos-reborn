@@ -158,3 +158,22 @@ add_executable(amos-test
     src/platform/input.c
 )
 target_compile_definitions(amos-test PRIVATE AMOS_TESTING=1)
+
+# Headless .AMOS file tester
+add_executable(test-load
+    tools/test_load.c
+    ${INTERPRETER_SOURCES}
+    src/display/screen.c
+    src/display/font_topaz.c
+    src/display/compositor.c
+    src/display/sprites.c
+    src/display/iff_loader.c
+    src/display/iff_commands.c
+    src/display/bank_loader.c
+    src/display/bank_commands.c
+    src/audio/paula.c
+    src/audio/effects.c
+    src/audio/tracker.c
+    src/platform/input.c
+)
+target_compile_definitions(test-load PRIVATE AMOS_TESTING=1)

@@ -36,6 +36,18 @@ amos_state_t *amos_create(void)
     state->last_error_line = 0;
     state->resume_line = -1;
 
+    /* Graphics state defaults */
+    state->line_pattern = 0xFFFF;
+    state->fill_pattern = 0;
+    state->clip_enabled = false;
+    state->current_font = 0;
+
+    /* Every timer defaults */
+    state->every_interval = 0;
+    state->every_counter = 0;
+    state->every_target_line = -1;
+    state->every_target_proc[0] = '\0';
+
     return state;
 }
 

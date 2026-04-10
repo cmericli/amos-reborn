@@ -15,9 +15,9 @@
 /* ── Version ─────────────────────────────────────────────────────── */
 
 #define AMOS_VERSION_MAJOR 0
-#define AMOS_VERSION_MINOR 4
+#define AMOS_VERSION_MINOR 5
 #define AMOS_VERSION_PATCH 0
-#define AMOS_VERSION_STRING "0.4.0"
+#define AMOS_VERSION_STRING "0.5.0"
 
 /* ── Limits ──────────────────────────────────────────────────────── */
 
@@ -275,6 +275,28 @@ typedef enum {
     TOK_RANDOMIZE,
     TOK_MODE,
     TOK_POKE,
+    TOK_DEEK,
+    TOK_DOKE,
+    TOK_LEEK,
+    TOK_LOKE,
+
+    /* Keywords — Control Flow Extensions */
+    TOK_SELECT,
+    TOK_CASE,
+    TOK_END_SELECT,
+    TOK_DEFAULT,
+    TOK_EVERY,
+    TOK_ON_GOTO,            /* On expr Goto ... */
+    TOK_ON_GOSUB,           /* On expr Gosub ... */
+
+    /* Keywords — Graphics Extensions */
+    TOK_SET_LINE,           /* Set Line pattern */
+    TOK_SET_PATTERN,        /* Set Pattern n */
+    TOK_CLIP,               /* Clip x1,y1 To x2,y2 */
+
+    /* Keywords — Bank Extensions */
+    TOK_RESERVE_AS_WORK,    /* Reserve As Work n,size */
+    TOK_RESERVE_AS_DATA,    /* Reserve As Data n,size */
 
     /* Keywords — Modern Extensions */
     TOK_SCREEN_MODE,        /* Mode Classic / Mode Modern */
@@ -325,6 +347,9 @@ typedef enum {
     NODE_DATA,
     NODE_READ,
     NODE_RESTORE,
+    NODE_SELECT,            /* Select...Case...End Select */
+    NODE_ON_BRANCH,         /* On expr Goto/Gosub label1,label2,... */
+    NODE_EVERY,             /* Every n Gosub/Proc */
 
     /* Expressions */
     NODE_BINARY_OP,
@@ -638,6 +663,20 @@ typedef struct {
     /* Directory scanning */
     char dir_pattern[256];
     void *dir_handle;               /* opaque DIR* pointer */
+
+    /* Every timer interrupt */
+    int every_interval;         /* timer interval in 50ths (0 = disabled) */
+    int every_counter;          /* frames until next trigger */
+    int every_target_line;      /* target line for Every Gosub (-1 = disabled) */
+    char every_target_proc[64]; /* target proc for Every Proc */
+
+    /* Graphics state */
+    uint16_t line_pattern;      /* Set Line pattern (16-bit mask, default 0xFFFF) */
+    int fill_pattern;           /* Set Pattern n */
+    int clip_x1, clip_y1;      /* Clip rectangle */
+    int clip_x2, clip_y2;
+    bool clip_enabled;
+    int current_font;           /* Set Font n */
 
     /* Error state */
     int error_code;

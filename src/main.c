@@ -4,8 +4,10 @@
  * Initializes the runtime, loads an AMOS program, and runs the main loop.
  * The main loop is structured as a per-frame tick for Emscripten compatibility.
  *
- * Usage: amos-reborn [program.txt]
- *        amos-reborn              (opens with default demo)
+ * Usage: amos-reborn              (opens AMOS 1.3 editor)
+ *        amos-reborn -pro         (opens AMOS Pro editor)
+ *        amos-reborn program.txt  (run program directly)
+ *        amos-reborn -e program.txt (load into editor)
  */
 
 #include "amos.h"
@@ -126,13 +128,29 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Determine mode: editor (no args) or run program (with file arg) */
-    bool start_in_editor = (argc <= 1);
+    /* Parse command line arguments */
+    bool start_in_editor = true;
+    bool start_pro = false;
+    bool edit_file = false;
+    const char *program_file = NULL;
 
-    /* Load program if specified */
-    if (argc > 1) {
-        fprintf(stderr, "Loading: %s\n", argv[1]);
-        if (amos_load_file(g_state, argv[1]) < 0) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-pro") == 0) {
+            start_pro = true;
+        } else if (strcmp(argv[i], "-e") == 0) {
+            edit_file = true;
+        } else {
+            program_file = argv[i];
+            if (!edit_file) {
+                start_in_editor = false;
+            }
+        }
+    }
+
+    /* Load program if running directly (not -e mode) */
+    if (program_file && !edit_file) {
+        fprintf(stderr, "Loading: %s\n", program_file);
+        if (amos_load_file(g_state, program_file) < 0) {
             fprintf(stderr, "Error: %s\n", g_state->error_msg);
             amos_destroy(g_state);
             return 1;
@@ -144,6 +162,10 @@ int main(int argc, char *argv[])
 
     if (start_in_editor) {
         /* Editor uses 320x256, scale 3x for comfortable viewing */
+        win_w = EDITOR_SCREEN_W * 3;
+        win_h = EDITOR_SCREEN_H * 3;
+    } else if (edit_file) {
+        /* -e flag: editor mode with a file */
         win_w = EDITOR_SCREEN_W * 3;
         win_h = EDITOR_SCREEN_H * 3;
     } else {
@@ -164,8 +186,18 @@ int main(int argc, char *argv[])
 
     if (start_in_editor) {
         /* Start in editor mode */
-        fprintf(stderr, "No program specified — opening AMOS 1.3 editor\n");
-        amos_editor_init(g_state);
+        if (start_pro) {
+            fprintf(stderr, "Opening AMOS Professional editor\n");
+            amos_editor_init_pro(g_state);
+        } else {
+            fprintf(stderr, "Opening AMOS 1.3 editor\n");
+            amos_editor_init(g_state);
+        }
+
+        /* Load file into editor if -e was specified */
+        if (edit_file && program_file) {
+            amos_editor_load_file(g_state, program_file);
+        }
     } else {
         /* Start program directly */
         amos_run(g_state);

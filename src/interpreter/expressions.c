@@ -134,6 +134,18 @@ static const builtin_func_t builtins[] = {
     {"Dir First$",    1, 1},
     {"Dir Next$",     0, 0},
     {"Filelen",       1, 1},
+    /* String functions */
+    {"Tab$",          1, 1},
+    {"Insert$",       3, 3},
+    /* Memory stubs */
+    {"Deek",          1, 1},
+    {"Leek",          1, 1},
+    /* Bank functions */
+    {"Start",         1, 1},
+    {"Length",         1, 1},
+    /* Screen position functions */
+    {"X Screen",      1, 1},
+    {"Y Screen",      1, 1},
     {NULL, 0, 0}
 };
 
@@ -244,6 +256,31 @@ static amos_node_t *parse_primary(amos_token_t *tokens, int *pos, int count)
     /* Identifier: variable, array access, or function call */
     if (tok->type == TOK_IDENTIFIER) {
         char *name = tok->sval;
+
+        /* Multi-word function: X Screen(n) / Y Screen(n) */
+        if ((strcasecmp(name, "X") == 0 || strcasecmp(name, "Y") == 0) &&
+            *pos + 1 < count && tokens[*pos + 1].type == TOK_IDENTIFIER) {
+            char combined[64];
+            snprintf(combined, sizeof(combined), "%s %s", name, tokens[*pos + 1].sval);
+            if (is_builtin_function(combined)) {
+                amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+                node->token = *tok;
+                node->token.sval = strdup(combined);
+                (*pos) += 2;
+                if (*pos < count && tokens[*pos].type == TOK_LPAREN) {
+                    (*pos)++;
+                    while (*pos < count && tokens[*pos].type != TOK_RPAREN) {
+                        amos_node_t *arg = parse_expr(tokens, pos, count, 0);
+                        if (arg) add_child(node, arg);
+                        if (*pos < count && tokens[*pos].type == TOK_COMMA)
+                            (*pos)++;
+                    }
+                    if (*pos < count && tokens[*pos].type == TOK_RPAREN)
+                        (*pos)++;
+                }
+                return node;
+            }
+        }
 
         /* Multi-word function: Dir First$(pattern) / Dir Next$() */
         if (strcasecmp(name, "Dir") == 0 && *pos + 1 < count &&
@@ -357,6 +394,22 @@ static amos_node_t *parse_primary(amos_token_t *tokens, int *pos, int count)
         node->token.sval = strdup("Timer");
         (*pos)++;
         return node;
+    }
+
+    /* Screen keyword in expression context: Screen Width / Screen Height */
+    if (tok->type == TOK_SCREEN) {
+        if (*pos + 1 < count && tokens[*pos + 1].type == TOK_IDENTIFIER) {
+            const char *next_name = tokens[*pos + 1].sval;
+            if (strcasecmp(next_name, "Width") == 0 || strcasecmp(next_name, "Height") == 0) {
+                char combined[32];
+                snprintf(combined, sizeof(combined), "Screen %s", next_name);
+                amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+                node->token = *tok;
+                node->token.sval = strdup(combined);
+                (*pos) += 2;  /* skip Screen and Width/Height */
+                return node;
+            }
+        }
     }
 
     return NULL;
