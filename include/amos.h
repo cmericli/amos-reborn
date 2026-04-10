@@ -645,6 +645,12 @@ void platform_audio_shutdown(void);
 
 void compositor_render(amos_state_t *state, uint32_t *output, int out_w, int out_h);
 
+/* ── Pixel Packing (little-endian safe for GL_RGBA GL_UNSIGNED_BYTE) ── */
+
+/* Pack RGBA into uint32 so bytes in memory are [R, G, B, A] */
+#define AMOS_RGBA(r, g, b, a) \
+    ((uint32_t)(r) | ((uint32_t)(g) << 8) | ((uint32_t)(b) << 16) | ((uint32_t)(a) << 24))
+
 /* ── Default Amiga Palette ───────────────────────────────────────── */
 
 extern const uint32_t amos_default_palette_32[32];

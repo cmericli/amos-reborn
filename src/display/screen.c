@@ -13,29 +13,33 @@
 
 /* ── Default Amiga Palette (32 colors, classic AMOS) ─────────────── */
 
-/* AMOS default palette: $RGB format (4 bits per channel) expanded to 32-bit RGBA */
+/* AMOS default palette: packed for GL_RGBA GL_UNSIGNED_BYTE (little-endian safe) */
 const uint32_t amos_default_palette_32[32] = {
-    0x000000FF, /* 0:  Black */
-    0x0000AAFF, /* 1:  Dark Blue (typical AMOS blue) */
-    0x00AA00FF, /* 2:  Dark Green */
-    0x00AAAAFF, /* 3:  Dark Cyan */
-    0xAA0000FF, /* 4:  Dark Red */
-    0xAA00AAFF, /* 5:  Dark Magenta */
-    0xAA5500FF, /* 6:  Brown */
-    0xAAAAAAFF, /* 7:  Light Gray */
-    0x555555FF, /* 8:  Dark Gray */
-    0x5555FFFF, /* 9:  Blue */
-    0x55FF55FF, /* 10: Green */
-    0x55FFFFFF, /* 11: Cyan */
-    0xFF5555FF, /* 12: Red */
-    0xFF55FFFF, /* 13: Magenta */
-    0xFFFF55FF, /* 14: Yellow */
-    0xFFFFFFFF, /* 15: White */
-    0x000000FF, /* 16-31: Additional colors, initially black */
-    0x111111FF, 0x222222FF, 0x333333FF, 0x444444FF,
-    0x555555FF, 0x666666FF, 0x777777FF, 0x888888FF,
-    0x999999FF, 0xAAAAAAFF, 0xBBBBBBFF, 0xCCCCCCFF,
-    0xDDDDDDFF, 0xEEEEEEFF, 0xFFFFFFFF,
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), /* 0:  Black */
+    AMOS_RGBA(0x00,0x00,0xAA,0xFF), /* 1:  Dark Blue */
+    AMOS_RGBA(0x00,0xAA,0x00,0xFF), /* 2:  Dark Green */
+    AMOS_RGBA(0x00,0xAA,0xAA,0xFF), /* 3:  Dark Cyan */
+    AMOS_RGBA(0xAA,0x00,0x00,0xFF), /* 4:  Dark Red */
+    AMOS_RGBA(0xAA,0x00,0xAA,0xFF), /* 5:  Dark Magenta */
+    AMOS_RGBA(0xAA,0x55,0x00,0xFF), /* 6:  Brown */
+    AMOS_RGBA(0xAA,0xAA,0xAA,0xFF), /* 7:  Light Gray */
+    AMOS_RGBA(0x55,0x55,0x55,0xFF), /* 8:  Dark Gray */
+    AMOS_RGBA(0x55,0x55,0xFF,0xFF), /* 9:  Blue */
+    AMOS_RGBA(0x55,0xFF,0x55,0xFF), /* 10: Green */
+    AMOS_RGBA(0x55,0xFF,0xFF,0xFF), /* 11: Cyan */
+    AMOS_RGBA(0xFF,0x55,0x55,0xFF), /* 12: Red */
+    AMOS_RGBA(0xFF,0x55,0xFF,0xFF), /* 13: Magenta */
+    AMOS_RGBA(0xFF,0xFF,0x55,0xFF), /* 14: Yellow */
+    AMOS_RGBA(0xFF,0xFF,0xFF,0xFF), /* 15: White */
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), /* 16-31: Additional colors */
+    AMOS_RGBA(0x11,0x11,0x11,0xFF), AMOS_RGBA(0x22,0x22,0x22,0xFF),
+    AMOS_RGBA(0x33,0x33,0x33,0xFF), AMOS_RGBA(0x44,0x44,0x44,0xFF),
+    AMOS_RGBA(0x55,0x55,0x55,0xFF), AMOS_RGBA(0x66,0x66,0x66,0xFF),
+    AMOS_RGBA(0x77,0x77,0x77,0xFF), AMOS_RGBA(0x88,0x88,0x88,0xFF),
+    AMOS_RGBA(0x99,0x99,0x99,0xFF), AMOS_RGBA(0xAA,0xAA,0xAA,0xFF),
+    AMOS_RGBA(0xBB,0xBB,0xBB,0xFF), AMOS_RGBA(0xCC,0xCC,0xCC,0xFF),
+    AMOS_RGBA(0xDD,0xDD,0xDD,0xFF), AMOS_RGBA(0xEE,0xEE,0xEE,0xFF),
+    AMOS_RGBA(0xFF,0xFF,0xFF,0xFF),
 };
 
 /* ── Screen Management ───────────────────────────────────────────── */
@@ -117,11 +121,11 @@ void amos_screen_colour(amos_state_t *state, int index, uint32_t rgb)
     if (!scr->active || index < 0 || index >= 256) return;
 
     /* AMOS uses $RGB format (4 bits per channel): $F00 = red, $0F0 = green, $00F = blue */
-    /* Convert $RGB to 32-bit RGBA */
+    /* Convert $RGB to AMOS_RGBA packed format */
     int r4 = (rgb >> 8) & 0xF;
     int g4 = (rgb >> 4) & 0xF;
     int b4 = rgb & 0xF;
-    scr->palette[index] = ((r4 * 17) << 24) | ((g4 * 17) << 16) | ((b4 * 17) << 8) | 0xFF;
+    scr->palette[index] = AMOS_RGBA(r4 * 17, g4 * 17, b4 * 17, 0xFF);
 }
 
 void amos_screen_palette(amos_state_t *state, uint32_t *colors, int count)
