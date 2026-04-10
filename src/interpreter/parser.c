@@ -426,7 +426,21 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
             }
             return n;
         }
-        case TOK_END_PROC:  return alloc_node(NODE_COMMAND, tok->line);
+        case TOK_END_PROC: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_END_PROC;
+            return n;
+        }
+        case TOK_ELSE: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_ELSE;
+            return n;
+        }
+        case TOK_END_IF: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_END_IF;
+            return n;
+        }
 
         /* All other commands: parse as generic command with arguments */
         case TOK_CLS:

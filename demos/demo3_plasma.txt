@@ -1,0 +1,96 @@
+Rem *** AMOS Reborn - Demo 3: Plasma + Bouncing Balls ***
+Rem Animated plasma palette cycling with bouncing filled circles
+
+Screen Open 0,320,256,5
+Palette $000,$100,$200,$300,$400,$500,$600,$700,$800,$900,$A00,$B00,$C00,$D00,$E00,$F00
+
+Rem Ball state: 8 bouncing balls
+Dim BPX(8)
+Dim BPY(8)
+Dim BDX(8)
+Dim BDY(8)
+Dim BSZ(8)
+Dim BCL(8)
+
+Randomize Timer
+
+For I=0 To 7
+  BPX(I)=30+Rnd(260)
+  BPY(I)=30+Rnd(196)
+  BDX(I)=1+Rnd(3)
+  BDY(I)=1+Rnd(3)
+  If Rnd(2)=0 Then BDX(I)=0-BDX(I)
+  If Rnd(2)=0 Then BDY(I)=0-BDY(I)
+  BSZ(I)=8+Rnd(20)
+  BCL(I)=1+Rnd(15)
+Next I
+
+Rem Animation frame counter
+FRAME=0
+
+Rem Sine table for plasma
+Dim STAB(256)
+For I=0 To 255
+  STAB(I)=128+Sin(I*3.14159/128.0)*127
+Next I
+
+Do
+  Cls 0
+
+  Rem Update palette for plasma color cycling
+  For I=1 To 15
+    PHASE=FRAME*3+I*17
+    R=STAB(PHASE Mod 256)/16
+    G=STAB((PHASE+85) Mod 256)/16
+    B=STAB((PHASE+170) Mod 256)/16
+    Colour I,R*256+G*16+B
+  Next I
+
+  Rem Draw plasma background bars
+  For Y=0 To 31
+    V=STAB((Y*8+FRAME*2) Mod 256)
+    COL=1+V*14/255
+    Ink COL
+    Bar 0,Y*8 To 319,Y*8+7
+  Next Y
+
+  Rem Move and draw bouncing balls
+  For I=0 To 7
+    Rem Move ball
+    BPX(I)=BPX(I)+BDX(I)
+    BPY(I)=BPY(I)+BDY(I)
+
+    Rem Bounce off walls
+    If BPX(I)<BSZ(I) Then BDX(I)=Abs(BDX(I))
+    If BPX(I)>319-BSZ(I) Then BDX(I)=0-Abs(BDX(I))
+    If BPY(I)<BSZ(I) Then BDY(I)=Abs(BDY(I))
+    If BPY(I)>255-BSZ(I) Then BDY(I)=0-Abs(BDY(I))
+
+    Rem Draw shadow
+    Ink 0
+    Circle BPX(I)+2,BPY(I)+2,BSZ(I)
+
+    Rem Draw ball
+    Ink BCL(I)
+    Circle BPX(I),BPY(I),BSZ(I)
+    Circle BPX(I),BPY(I),BSZ(I)-2
+    Circle BPX(I),BPY(I),BSZ(I)-4
+  Next I
+
+  Rem Draw title bar
+  Ink 0
+  Bar 0,0 To 319,12
+  Ink 15,0
+  Locate 5,0
+  Print "AMOS Reborn - Plasma + Bouncing Balls"
+
+  Rem Frame counter
+  Ink 15,0
+  Locate 0,30
+  Print "Frame: ";
+  Print FRAME;
+
+  FRAME=FRAME+1
+
+  Wait Vbl
+Loop

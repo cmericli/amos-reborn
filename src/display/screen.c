@@ -246,6 +246,84 @@ void amos_screen_circle(amos_state_t *state, int cx, int cy, int r, int color)
     }
 }
 
+/* ── Filled Circle ───────────────────────────────────────────────── */
+
+void amos_screen_filled_circle(amos_state_t *state, int cx, int cy, int r, int color)
+{
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+
+    uint32_t c = scr->palette[color % 256];
+    int x = r, y = 0, err = 1 - r;
+
+    while (x >= y) {
+        for (int i = cx - x; i <= cx + x; i++) put_pixel(scr, i, cy + y, c);
+        for (int i = cx - x; i <= cx + x; i++) put_pixel(scr, i, cy - y, c);
+        for (int i = cx - y; i <= cx + y; i++) put_pixel(scr, i, cy + x, c);
+        for (int i = cx - y; i <= cx + y; i++) put_pixel(scr, i, cy - x, c);
+
+        y++;
+        if (err < 0) {
+            err += 2 * y + 1;
+        } else {
+            x--;
+            err += 2 * (y - x) + 1;
+        }
+    }
+}
+
+/* ── Ellipse (outline, midpoint algorithm) ───────────────────────── */
+
+void amos_screen_ellipse(amos_state_t *state, int cx, int cy, int rx, int ry, int color)
+{
+    amos_screen_t *scr = &state->screens[state->current_screen];
+    if (!scr->active) return;
+
+    uint32_t c = scr->palette[color % 256];
+    long rx2 = (long)rx * rx, ry2 = (long)ry * ry;
+    long two_rx2 = 2 * rx2, two_ry2 = 2 * ry2;
+    long x = rx, y = 0;
+    long px = 0, py = two_rx2 * y;
+
+    /* Region 1 */
+    long p1 = ry2 - rx2 * ry + rx2 / 4;
+    px = 0; py = two_rx2 * ry; /* typo fix */
+    x = rx; y = 0; px = 0; py = two_rx2 * y;
+    while (px < py) {
+        put_pixel(scr, cx + (int)x, cy + (int)y, c);
+        put_pixel(scr, cx - (int)x, cy + (int)y, c);
+        put_pixel(scr, cx + (int)x, cy - (int)y, c);
+        put_pixel(scr, cx - (int)x, cy - (int)y, c);
+        y++;
+        px += two_ry2;
+        if (p1 < 0) {
+            p1 += ry2 + px;
+        } else {
+            x--;
+            py -= two_rx2;
+            p1 += ry2 + px - py;
+        }
+    }
+
+    /* Region 2 */
+    long p2 = ry2 * (x * 2 - 1) * (x * 2 - 1) / 4 + rx2 * (y - 1) * (y - 1) - rx2 * ry2;
+    while (x >= 0) {
+        put_pixel(scr, cx + (int)x, cy + (int)y, c);
+        put_pixel(scr, cx - (int)x, cy + (int)y, c);
+        put_pixel(scr, cx + (int)x, cy - (int)y, c);
+        put_pixel(scr, cx - (int)x, cy - (int)y, c);
+        x--;
+        py -= two_rx2;
+        if (p2 > 0) {
+            p2 += rx2 - py;
+        } else {
+            y++;
+            px += two_ry2;
+            p2 += rx2 - py + px;
+        }
+    }
+}
+
 /* ── Text Cursor & Print ─────────────────────────────────────────── */
 
 void amos_screen_locate(amos_state_t *state, int x, int y)

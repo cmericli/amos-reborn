@@ -608,6 +608,8 @@ void amos_screen_draw(amos_state_t *state, int x1, int y1, int x2, int y2, int c
 void amos_screen_box(amos_state_t *state, int x1, int y1, int x2, int y2, int color);
 void amos_screen_bar(amos_state_t *state, int x1, int y1, int x2, int y2, int color);
 void amos_screen_circle(amos_state_t *state, int cx, int cy, int r, int color);
+void amos_screen_filled_circle(amos_state_t *state, int cx, int cy, int r, int color);
+void amos_screen_ellipse(amos_state_t *state, int cx, int cy, int rx, int ry, int color);
 void amos_screen_print(amos_state_t *state, const char *text);
 void amos_screen_locate(amos_state_t *state, int x, int y);
 void amos_screen_ink(amos_state_t *state, int pen, int paper, int outline);

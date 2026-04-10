@@ -397,6 +397,104 @@ static eval_result_t eval_node(amos_state_t *state, amos_node_t *node)
     }
 }
 
+/* ── Block Scanning Helpers ───────────────────────────────────────── */
+
+/* Scan forward to find matching Else or End If, respecting nesting */
+static int scan_to_else_or_endif(amos_state_t *state, int from_line)
+{
+    int depth = 1;
+    for (int i = from_line + 1; i < state->line_count; i++) {
+        /* Lazy-parse the line to check its type */
+        amos_program_line_t *pl = &state->lines[i];
+        if (!pl->ast && pl->text) {
+            amos_token_list_t *tokens = amos_tokenize(pl->text);
+            if (tokens && tokens->count > 0) {
+                int pos = 0;
+                pl->ast = amos_parse_line(tokens->tokens, &pos, tokens->count);
+            }
+            amos_token_list_free(tokens);
+        }
+        if (!pl->ast) continue;
+
+        if (pl->ast->type == NODE_IF) depth++;
+        if (pl->ast->type == NODE_COMMAND && pl->ast->token.type == TOK_END_IF) {
+            depth--;
+            if (depth == 0) return i;
+        }
+        if (depth == 1 && pl->ast->type == NODE_COMMAND && pl->ast->token.type == TOK_ELSE) {
+            return i;
+        }
+    }
+    return state->line_count; /* not found — skip to end */
+}
+
+/* Scan forward to find matching End If, respecting nesting */
+static int scan_to_endif(amos_state_t *state, int from_line)
+{
+    int depth = 1;
+    for (int i = from_line + 1; i < state->line_count; i++) {
+        amos_program_line_t *pl = &state->lines[i];
+        if (!pl->ast && pl->text) {
+            amos_token_list_t *tokens = amos_tokenize(pl->text);
+            if (tokens && tokens->count > 0) {
+                int pos = 0;
+                pl->ast = amos_parse_line(tokens->tokens, &pos, tokens->count);
+            }
+            amos_token_list_free(tokens);
+        }
+        if (!pl->ast) continue;
+
+        if (pl->ast->type == NODE_IF) depth++;
+        if (pl->ast->type == NODE_COMMAND && pl->ast->token.type == TOK_END_IF) {
+            depth--;
+            if (depth == 0) return i;
+        }
+    }
+    return state->line_count;
+}
+
+/* Scan forward to find matching Wend */
+static int scan_to_wend(amos_state_t *state, int from_line)
+{
+    int depth = 1;
+    for (int i = from_line + 1; i < state->line_count; i++) {
+        amos_program_line_t *pl = &state->lines[i];
+        if (!pl->ast && pl->text) {
+            amos_token_list_t *tokens = amos_tokenize(pl->text);
+            if (tokens && tokens->count > 0) {
+                int pos = 0;
+                pl->ast = amos_parse_line(tokens->tokens, &pos, tokens->count);
+            }
+            amos_token_list_free(tokens);
+        }
+        if (!pl->ast) continue;
+
+        if (pl->ast->type == NODE_WHILE) depth++;
+        if (pl->ast->type == NODE_COMMAND && pl->ast->token.type == TOK_WEND) {
+            depth--;
+            if (depth == 0) return i;
+        }
+    }
+    return state->line_count;
+}
+
+/* Scan backward to find matching Repeat */
+static int scan_to_repeat(amos_state_t *state, int from_line)
+{
+    int depth = 1;
+    for (int i = from_line - 1; i >= 0; i--) {
+        amos_program_line_t *pl = &state->lines[i];
+        if (!pl->ast) continue;
+
+        if (pl->ast->type == NODE_COMMAND && pl->ast->token.type == TOK_UNTIL) depth++;
+        if (pl->ast->type == NODE_REPEAT) {
+            depth--;
+            if (depth == 0) return i;
+        }
+    }
+    return 0;
+}
+
 /* ── Find line by number ─────────────────────────────────────────── */
 
 static int find_line_index(amos_state_t *state, int line_number)
@@ -530,23 +628,34 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
         }
 
         case NODE_IF: {
-            if (node->child_count < 2) break;
+            if (node->child_count < 1) break;
             eval_result_t cond = eval_node(state, node->children[0]);
             bool is_true = to_int(cond) != 0;
             free_result(&cond);
 
-            if (is_true) {
-                /* Execute then-branch */
-                amos_node_t *then_body = node->children[1];
-                for (int i = 0; i < then_body->child_count && state->running; i++) {
-                    amos_execute_node(state, then_body->children[i]);
+            if (node->child_count >= 2) {
+                /* Single-line If: Then-body is already parsed as children */
+                if (is_true) {
+                    amos_node_t *then_body = node->children[1];
+                    for (int i = 0; i < then_body->child_count && state->running; i++) {
+                        amos_execute_node(state, then_body->children[i]);
+                    }
+                } else if (node->child_count > 2) {
+                    amos_node_t *else_body = node->children[2];
+                    for (int i = 0; i < else_body->child_count && state->running; i++) {
+                        amos_execute_node(state, else_body->children[i]);
+                    }
                 }
-            } else if (node->child_count > 2) {
-                /* Execute else-branch */
-                amos_node_t *else_body = node->children[2];
-                for (int i = 0; i < else_body->child_count && state->running; i++) {
-                    amos_execute_node(state, else_body->children[i]);
+            } else {
+                /* Multi-line If: condition only, body spans subsequent lines */
+                if (!is_true) {
+                    /* Skip to matching Else or End If */
+                    int target = scan_to_else_or_endif(state, state->current_line);
+                    state->current_line = target;
+                    /* If we landed on Else, the next step will execute it and
+                       continue into the else body. If End If, it's a no-op. */
                 }
+                /* If true, just continue to next line (the body) */
             }
             break;
         }
@@ -610,12 +719,18 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 }
 
                 case TOK_WEND: {
-                    /* Find matching While — walk backwards */
+                    /* Find matching While — walk backwards with nesting */
+                    int depth = 1;
                     for (int i = state->current_line - 1; i >= 0; i--) {
                         amos_node_t *ln = state->lines[i].ast;
-                        if (ln && ln->type == NODE_WHILE) {
-                            state->current_line = i;
-                            return;
+                        if (!ln) continue;
+                        if (ln->type == NODE_COMMAND && ln->token.type == TOK_WEND) depth++;
+                        if (ln->type == NODE_WHILE) {
+                            depth--;
+                            if (depth == 0) {
+                                state->current_line = i;
+                                return;
+                            }
                         }
                     }
                     break;
@@ -647,7 +762,9 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                         bool is_true = to_int(cond) != 0;
                         free_result(&cond);
                         if (!is_true) {
-                            /* Loop back — find Repeat */
+                            /* Loop back to matching Repeat */
+                            int target = scan_to_repeat(state, state->current_line);
+                            state->current_line = target;
                         }
                     }
                     break;
@@ -785,6 +902,21 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                         amos_screen_circle(state, to_int(x), to_int(y), to_int(r),
                                            state->screens[state->current_screen].ink_color);
                         free_result(&x); free_result(&y); free_result(&r);
+                    }
+                    break;
+                }
+
+                case TOK_ELLIPSE: {
+                    if (node->child_count >= 4) {
+                        eval_result_t x = eval_node(state, node->children[0]);
+                        eval_result_t y = eval_node(state, node->children[1]);
+                        eval_result_t rx = eval_node(state, node->children[2]);
+                        eval_result_t ry = eval_node(state, node->children[3]);
+                        amos_screen_ellipse(state, to_int(x), to_int(y),
+                                            to_int(rx), to_int(ry),
+                                            state->screens[state->current_screen].ink_color);
+                        free_result(&x); free_result(&y);
+                        free_result(&rx); free_result(&ry);
                     }
                     break;
                 }
@@ -929,6 +1061,18 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     amos_screen_locate(state, 0, 0);
                     break;
 
+                case TOK_ELSE: {
+                    /* We reached Else during normal execution — the If-true body
+                       just finished. Skip to matching End If. */
+                    int target = scan_to_endif(state, state->current_line);
+                    state->current_line = target;
+                    break;
+                }
+
+                case TOK_END_IF:
+                    /* No-op — just continue to next line */
+                    break;
+
                 default:
                     break;
             }
@@ -1010,6 +1154,25 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             }
             break;
         }
+
+        case NODE_WHILE: {
+            /* Evaluate condition — if false, skip to matching Wend */
+            if (node->child_count > 0) {
+                eval_result_t cond = eval_node(state, node->children[0]);
+                bool is_true = to_int(cond) != 0;
+                free_result(&cond);
+                if (!is_true) {
+                    int target = scan_to_wend(state, state->current_line);
+                    state->current_line = target;
+                }
+                /* If true, continue to next line (the body) */
+            }
+            break;
+        }
+
+        case NODE_REPEAT:
+            /* No-op — just mark the loop start point. Until handles the jump. */
+            break;
 
         case NODE_RESTORE:
             state->data_line = 0;
