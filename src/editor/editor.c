@@ -306,7 +306,11 @@ void amos_editor_render(amos_state_t *state)
     amos_screen_t *scr = &state->screens[0];
     if (!scr->active) return;
 
-    /* ── Status bar (row 0): black bg, white text ──── */
+    /* ── Fill entire screen with dark blue (the authentic AMOS look) ──── */
+    for (int i = 0; i < scr->width * scr->height; i++)
+        scr->pixels[i] = EDITOR_COLOR_DARK_BLUE;
+
+    /* ── Status bar (row 0): black bg, white/orange text ──── */
     editor_fill_rect(scr, 0, 0, EDITOR_SCREEN_W - 1, EDITOR_CHAR_H - 1,
                      EDITOR_COLOR_BLACK);
 
@@ -338,7 +342,7 @@ void amos_editor_render(amos_state_t *state)
         }
     }
 
-    /* ── Cursor (blinking) ──── */
+    /* ── Cursor (blinking block — authentic AMOS style) ──── */
     if (g_editor.cursor_visible && !g_editor.direct_mode) {
         int screen_row = EDITOR_CODE_TOP + (g_editor.cursor_y - g_editor.scroll_y);
         if (screen_row >= EDITOR_CODE_TOP && screen_row <= EDITOR_CODE_BOTTOM) {
@@ -347,25 +351,18 @@ void amos_editor_render(amos_state_t *state)
             int px = cx * EDITOR_CHAR_W;
             int py = screen_row * EDITOR_CHAR_H;
 
-            /* XOR-style cursor: draw a filled block in cyan */
-            if (g_editor.insert_mode) {
-                /* Thin line cursor for insert mode */
-                for (int r = 0; r < EDITOR_CHAR_H; r++)
-                    editor_put_pixel(scr, px, py + r, EDITOR_COLOR_CYAN);
-            } else {
-                /* Block cursor for overwrite mode */
-                editor_fill_rect(scr, px, py,
-                                 px + EDITOR_CHAR_W - 1,
-                                 py + EDITOR_CHAR_H - 1,
-                                 EDITOR_COLOR_CYAN);
-                /* Draw character under cursor in dark blue on cyan */
-                const char *line = g_editor.lines[g_editor.cursor_y];
-                int len = (int)strlen(line);
-                unsigned char ch = (g_editor.cursor_x < len)
-                    ? (unsigned char)line[g_editor.cursor_x] : ' ';
-                editor_draw_char(scr, px, py, ch,
-                                 EDITOR_COLOR_DARK_BLUE, EDITOR_COLOR_CYAN);
-            }
+            /* Block cursor: cyan block with character drawn inverted */
+            editor_fill_rect(scr, px, py,
+                             px + EDITOR_CHAR_W - 1,
+                             py + EDITOR_CHAR_H - 1,
+                             EDITOR_COLOR_CYAN);
+            /* Draw character under cursor in dark blue on cyan */
+            const char *line = g_editor.lines[g_editor.cursor_y];
+            int len = (int)strlen(line);
+            unsigned char ch = (g_editor.cursor_x < len)
+                ? (unsigned char)line[g_editor.cursor_x] : ' ';
+            editor_draw_char(scr, px, py, ch,
+                             EDITOR_COLOR_DARK_BLUE, EDITOR_COLOR_CYAN);
         }
     }
 
