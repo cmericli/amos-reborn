@@ -25,6 +25,62 @@ typedef struct {
 
 static eval_result_t eval_node(amos_state_t *state, amos_node_t *node);
 
+/* ── Array Helpers ───────────────────────────────────────────────── */
+
+static amos_array_t *array_find(amos_state_t *state, const char *name)
+{
+    for (int i = 0; i < state->array_count; i++) {
+        if (strcasecmp(state->arrays[i].name, name) == 0)
+            return &state->arrays[i];
+    }
+    return NULL;
+}
+
+static amos_array_t *array_create(amos_state_t *state, const char *name,
+                                   int *dims, int ndims)
+{
+    if (state->array_count >= AMOS_MAX_ARRAYS) return NULL;
+
+    amos_array_t *arr = &state->arrays[state->array_count++];
+    memset(arr, 0, sizeof(*arr));
+    strncpy(arr->name, name, sizeof(arr->name) - 1);
+
+    int len = (int)strlen(name);
+    if (len > 0 && name[len - 1] == '$') arr->type = VAR_STRING;
+    else if (len > 0 && name[len - 1] == '#') arr->type = VAR_FLOAT;
+    else arr->type = VAR_INTEGER;
+
+    arr->ndims = ndims;
+    arr->total_elements = 1;
+    for (int i = 0; i < ndims; i++) {
+        arr->dims[i] = dims[i] + 1;  /* AMOS arrays are 0..N inclusive */
+        arr->total_elements *= arr->dims[i];
+    }
+
+    if (arr->type == VAR_INTEGER)
+        arr->data = calloc(arr->total_elements, sizeof(int32_t));
+    else if (arr->type == VAR_FLOAT)
+        arr->data = calloc(arr->total_elements, sizeof(double));
+    else
+        arr->data = calloc(arr->total_elements, sizeof(char *));
+
+    return arr;
+}
+
+static int array_index(amos_array_t *arr, int *indices, int nidx)
+{
+    if (nidx != arr->ndims) return -1;
+    int flat = 0;
+    int multiplier = 1;
+    for (int i = arr->ndims - 1; i >= 0; i--) {
+        if (indices[i] < 0 || indices[i] >= arr->dims[i]) return -1;
+        flat += indices[i] * multiplier;
+        multiplier *= arr->dims[i];
+    }
+    return flat;
+}
+
+
 static eval_result_t make_int(int32_t v)
 {
     return (eval_result_t){.type = VAR_INTEGER, .ival = v};
@@ -232,6 +288,31 @@ static eval_result_t eval_node(amos_state_t *state, amos_node_t *node)
             return make_int(0);
         }
 
+        case NODE_ARRAY_ACCESS: {
+            amos_array_t *arr = array_find(state, node->token.sval);
+            if (!arr) return make_int(0);
+
+            int indices[10] = {0};
+            int nidx = 0;
+            for (int i = 0; i < node->child_count && nidx < 10; i++) {
+                eval_result_t idx = eval_node(state, node->children[i]);
+                indices[nidx++] = to_int(idx);
+                free_result(&idx);
+            }
+
+            int flat = array_index(arr, indices, nidx);
+            if (flat < 0) return make_int(0);
+
+            if (arr->type == VAR_INTEGER)
+                return make_int(((int32_t *)arr->data)[flat]);
+            else if (arr->type == VAR_FLOAT)
+                return make_float(((double *)arr->data)[flat]);
+            else {
+                char **strs = (char **)arr->data;
+                return make_string(strs[flat] ? strs[flat] : "");
+            }
+        }
+
         case NODE_FUNCTION_CALL:
             return eval_function(state, node);
 
@@ -408,10 +489,35 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
         case NODE_LET: {
             const char *name = node->token.sval;
-            if (!name) break;
+            if (!name || node->child_count == 0) break;
 
-            /* Last child is the value expression */
-            if (node->child_count > 0) {
+            /* Check if this is an array assignment (more than 1 child = indices + value) */
+            amos_array_t *arr = array_find(state, name);
+            if (arr && node->child_count > 1) {
+                /* Array assignment: children[0..N-2] = indices, children[N-1] = value */
+                int indices[10] = {0};
+                int nidx = 0;
+                for (int i = 0; i < node->child_count - 1 && nidx < 10; i++) {
+                    eval_result_t idx = eval_node(state, node->children[i]);
+                    indices[nidx++] = to_int(idx);
+                    free_result(&idx);
+                }
+                int flat = array_index(arr, indices, nidx);
+                if (flat >= 0) {
+                    eval_result_t val = eval_node(state, node->children[node->child_count - 1]);
+                    if (arr->type == VAR_INTEGER)
+                        ((int32_t *)arr->data)[flat] = to_int(val);
+                    else if (arr->type == VAR_FLOAT)
+                        ((double *)arr->data)[flat] = to_number(val);
+                    else {
+                        char **strs = (char **)arr->data;
+                        free(strs[flat]);
+                        strs[flat] = strdup(val.type == VAR_STRING ? val.sval : "");
+                    }
+                    free_result(&val);
+                }
+            } else {
+                /* Simple variable assignment */
                 eval_result_t val = eval_node(state, node->children[node->child_count - 1]);
                 switch (val.type) {
                     case VAR_INTEGER: amos_var_set_int(state, name, val.ival); break;
@@ -909,6 +1015,23 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             state->data_line = 0;
             state->data_pos = 0;
             break;
+
+        case NODE_DIM: {
+            for (int i = 0; i < node->child_count; i++) {
+                amos_node_t *arr_node = node->children[i];
+                if (!arr_node || !arr_node->token.sval) continue;
+
+                int dims[10] = {0};
+                int ndims = 0;
+                for (int j = 0; j < arr_node->child_count && ndims < 10; j++) {
+                    eval_result_t d = eval_node(state, arr_node->children[j]);
+                    dims[ndims++] = to_int(d);
+                    free_result(&d);
+                }
+                array_create(state, arr_node->token.sval, dims, ndims);
+            }
+            break;
+        }
 
         default:
             break;

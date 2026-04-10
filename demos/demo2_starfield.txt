@@ -1,0 +1,68 @@
+Rem *** AMOS Reborn - Demo 2: Starfield + Bouncing Bars ***
+Rem Animated demo: 3-layer parallax starfield with color cycling bars
+
+Screen Open 0,320,256,5
+Palette $000,$FFF,$DDD,$BBB,$999,$777,$F00,$0F0,$00F,$FF0,$0FF,$F0F,$F80,$08F,$80F,$0F8
+
+Rem Initialize star positions
+Dim SX(60)
+Dim SY(60)
+Dim SS(60)
+Dim SC(60)
+
+Randomize Timer
+
+For I=0 To 59
+  SX(I)=Rnd(320)
+  SY(I)=Rnd(256)
+  SS(I)=1+Rnd(3)
+  SC(I)=1+Rnd(4)
+Next I
+
+Rem Bar animation state
+BX=0
+BD=2
+BY=0
+
+Rem Main animation loop
+Do
+  Cls 0
+
+  Rem Draw and move stars
+  For I=0 To 59
+    SX(I)=SX(I)-SS(I)
+    If SX(I)<0 Then SX(I)=319
+    Ink SC(I)
+    Plot SX(I),SY(I)
+  Next I
+
+  Rem Draw animated color bars
+  For I=0 To 7
+    BCOLOR=6+I
+    If BCOLOR>15 Then BCOLOR=BCOLOR-10
+    Ink BCOLOR
+    YP=BY+I*28
+    If YP>255 Then YP=YP-256
+    Bar 0,YP To 319,YP+12
+  Next I
+
+  Rem Bouncing white bar
+  Ink 1
+  Bar BX,120 To BX+60,130
+  BX=BX+BD
+  If BX>258 Then BD=-2
+  If BX<0 Then BD=2
+
+  Rem Scroll bars down
+  BY=BY+1
+  If BY>255 Then BY=0
+
+  Rem Title
+  Ink 1,0
+  Locate 7,1
+  Print "AMOS Reborn - Demo 2"
+  Locate 4,30
+  Print "Starfield + Color Bars  Ctrl+T: CRT"
+
+  Wait Vbl
+Loop
