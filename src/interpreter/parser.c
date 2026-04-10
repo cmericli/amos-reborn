@@ -275,9 +275,12 @@ static amos_node_t *parse_command(amos_token_t *tokens, int *pos, int count, amo
         add_child(node, arg);
 
         if (!match(tokens, pos, count, TOK_COMMA)) {
+            /* "To" acts as a separator in commands like Bar x1,y1 To x2,y2 */
+            if (peek_is(tokens, *pos, count, TOK_TO)) {
+                continue;  /* loop will handle the To token */
+            }
             /* Check for implicit argument separation (some commands use spaces) */
             if (!at_end(tokens, *pos, count) &&
-                !peek_is(tokens, *pos, count, TOK_TO) &&
                 (tokens[*pos].type == TOK_INTEGER ||
                  tokens[*pos].type == TOK_FLOAT ||
                  tokens[*pos].type == TOK_IDENTIFIER ||
