@@ -177,14 +177,14 @@ int main(int argc, char *argv[])
 #else
     while (!platform_should_quit()) {
         if (amos_editor_is_active(g_state)) {
-            /* Editor mode: editor handles its own input, rendering, and presentation */
+            /* Editor mode */
             amos_editor_tick(g_state);
         } else if (g_state->running) {
-            /* Run mode: execute the program */
+            /* Run mode */
             amos_frame_tick(g_state);
         } else {
-            /* Program ended — return to editor */
-            amos_editor_init(g_state);
+            /* Program ended or idle */
+            break;
         }
 
         /* Simple frame rate limiting (~60fps) */
