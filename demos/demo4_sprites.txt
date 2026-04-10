@@ -1,0 +1,68 @@
+Rem *** AMOS Reborn - Demo 4: Sprites in Motion ***
+Rem 16 sprites bouncing around the screen
+
+Screen Open 0,320,256,5
+Palette $000,$FFF,$F00,$0F0,$00F,$FF0,$0FF,$F0F,$888,$F80,$08F,$0F8,$80F,$F08,$8F0,$F88
+
+Randomize Timer
+
+Rem Sprite position and velocity arrays
+Dim PX(16)
+Dim PY(16)
+Dim VX(16)
+Dim VY(16)
+
+Rem Initialize 16 sprites
+For I=0 To 15
+  PX(I)=30+Rnd(260)
+  PY(I)=30+Rnd(196)
+  VX(I)=1+Rnd(3)
+  VY(I)=1+Rnd(3)
+  If Rnd(2)=0 Then VX(I)=0-VX(I)
+  If Rnd(2)=0 Then VY(I)=0-VY(I)
+  Sprite I,PX(I),PY(I),I+1
+Next I
+
+FRAME=0
+
+Do
+  Cls 0
+
+  Rem Draw background grid
+  Ink 4
+  For X=0 To 319 Step 32
+    Draw X,0 To X,255
+  Next X
+  For Y=0 To 255 Step 32
+    Draw 0,Y To 319,Y
+  Next Y
+
+  Rem Draw a pulsing center circle
+  Ink 8
+  R=20+Sin(FRAME*0.1)*15
+  Circle 160,128,R
+
+  Rem Move and reposition sprites
+  For I=0 To 15
+    PX(I)=PX(I)+VX(I)
+    PY(I)=PY(I)+VY(I)
+
+    Rem Bounce off edges
+    If PX(I)<8 Then VX(I)=Abs(VX(I))
+    If PX(I)>311 Then VX(I)=0-Abs(VX(I))
+    If PY(I)<8 Then VY(I)=Abs(VY(I))
+    If PY(I)>247 Then VY(I)=0-Abs(VY(I))
+
+    Sprite I,PX(I),PY(I),I+1
+  Next I
+
+  Rem Title bar
+  Ink 0
+  Bar 0,0 To 319,10
+  Ink 15,0
+  Locate 4,0
+  Print "AMOS Reborn v0.2 - 16 Sprites!"
+
+  FRAME=FRAME+1
+  Wait Vbl
+Loop

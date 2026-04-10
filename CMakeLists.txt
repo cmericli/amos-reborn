@@ -55,6 +55,7 @@ set(DISPLAY_SOURCES
     src/display/compositor.c
     src/display/crt_shader.c
     src/display/font_topaz.c
+    src/display/sprites.c
 )
 
 set(AUDIO_SOURCES
@@ -117,6 +118,7 @@ add_executable(amos-test
     src/display/screen.c
     src/display/font_topaz.c
     src/display/compositor.c
+    src/display/sprites.c
     src/audio/paula.c
     src/audio/effects.c
 )

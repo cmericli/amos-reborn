@@ -1061,6 +1061,48 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     amos_screen_locate(state, 0, 0);
                     break;
 
+                case TOK_SPRITE: {
+                    /* Sprite id,x,y,image */
+                    int args[4] = {0, 0, 0, 1};
+                    for (int i = 0; i < node->child_count && i < 4; i++) {
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[i] = to_int(r); free_result(&r);
+                    }
+                    amos_sprite_set(state, args[0], args[1], args[2], args[3]);
+                    break;
+                }
+
+                case TOK_BOB: {
+                    /* Bob id,x,y,image */
+                    int args[4] = {0, 0, 0, 1};
+                    for (int i = 0; i < node->child_count && i < 4; i++) {
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[i] = to_int(r); free_result(&r);
+                    }
+                    amos_bob_set(state, args[0], args[1], args[2], args[3]);
+                    break;
+                }
+
+                case TOK_SPRITE_OFF: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_sprite_off(state, to_int(r)); free_result(&r);
+                    } else {
+                        amos_sprite_off(state, -1);
+                    }
+                    break;
+                }
+
+                case TOK_BOB_OFF: {
+                    if (node->child_count > 0) {
+                        eval_result_t r = eval_node(state, node->children[0]);
+                        amos_bob_off(state, to_int(r)); free_result(&r);
+                    } else {
+                        amos_bob_off(state, -1);
+                    }
+                    break;
+                }
+
                 case TOK_ELSE: {
                     /* We reached Else during normal execution — the If-true body
                        just finished. Skip to matching End If. */

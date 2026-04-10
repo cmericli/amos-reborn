@@ -14,9 +14,9 @@
 /* ── Version ─────────────────────────────────────────────────────── */
 
 #define AMOS_VERSION_MAJOR 0
-#define AMOS_VERSION_MINOR 1
+#define AMOS_VERSION_MINOR 2
 #define AMOS_VERSION_PATCH 0
-#define AMOS_VERSION_STRING "0.1.0"
+#define AMOS_VERSION_STRING "0.2.0"
 
 /* ── Limits ──────────────────────────────────────────────────────── */
 
@@ -642,6 +642,17 @@ void platform_present(amos_state_t *state);
 uint32_t platform_get_ticks(void);
 void platform_audio_init(amos_state_t *state);
 void platform_audio_shutdown(void);
+
+/* ── Sprites & Bobs ──────────────────────────────────────────────── */
+
+void amos_sprites_init(amos_state_t *state);
+void amos_sprite_set(amos_state_t *state, int id, int x, int y, int image);
+void amos_sprite_off(amos_state_t *state, int id);
+void amos_bob_set(amos_state_t *state, int id, int x, int y, int image);
+void amos_bob_off(amos_state_t *state, int id);
+void amos_sprites_render(amos_state_t *state, uint32_t *output, int out_w, int out_h);
+int  amos_sprite_col(amos_state_t *state, int id);
+int  amos_bob_col(amos_state_t *state, int id);
 
 /* ── Compositor ──────────────────────────────────────────────────── */
 

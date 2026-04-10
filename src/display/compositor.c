@@ -69,6 +69,9 @@ void compositor_render(amos_state_t *state, uint32_t *output, int out_w, int out
             }
         }
     }
+
+    /* Render sprites and bobs on top */
+    amos_sprites_render(state, output, out_w, out_h);
 }
 
 /* ── Drawing primitives not yet implemented ──────────────────────── */
