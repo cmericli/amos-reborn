@@ -476,6 +476,19 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
             n->token.type = TOK_END_PROC;
             return n;
         }
+
+        /* Shared — no-op until scoping is implemented (all vars are global) */
+        case TOK_SHARED: {
+            amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
+            n->token.type = TOK_SHARED;
+            /* Skip variable names */
+            while (!at_end(tokens, *pos, count)) {
+                if (tokens[*pos].type == TOK_IDENTIFIER) (*pos)++;
+                else if (tokens[*pos].type == TOK_COMMA) (*pos)++;
+                else break;
+            }
+            return n;
+        }
         case TOK_ELSE: {
             amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
             n->token.type = TOK_ELSE;

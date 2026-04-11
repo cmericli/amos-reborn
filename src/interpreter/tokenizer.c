@@ -352,8 +352,8 @@ amos_token_list_t *amos_tokenize(const char *source)
                 case '*': tok.type = TOK_MULTIPLY; break;
                 case '/': tok.type = TOK_DIVIDE; break;
                 case '^': tok.type = TOK_POWER; break;
-                case '(': tok.type = TOK_LPAREN; break;
-                case ')': tok.type = TOK_RPAREN; break;
+                case '(': case '[': tok.type = TOK_LPAREN; break;
+                case ')': case ']': tok.type = TOK_RPAREN; break;
                 case ',': tok.type = TOK_COMMA; break;
                 case ';': tok.type = TOK_SEMICOLON; break;
                 case ':': tok.type = TOK_COLON; break;

@@ -433,6 +433,26 @@ static amos_node_t *parse_primary(amos_token_t *tokens, int *pos, int count)
         }
     }
 
+    /* Colour(n) — keyword used as function in expression context */
+    if (tok->type == TOK_COLOUR) {
+        amos_node_t *node = alloc_node(NODE_FUNCTION_CALL, tok->line);
+        node->token = *tok;
+        node->token.sval = strdup("Colour");
+        (*pos)++;
+        if (*pos < count && tokens[*pos].type == TOK_LPAREN) {
+            (*pos)++;
+            while (*pos < count && tokens[*pos].type != TOK_RPAREN) {
+                amos_node_t *arg = parse_expr(tokens, pos, count, 0);
+                if (arg) add_child(node, arg);
+                if (*pos < count && tokens[*pos].type == TOK_COMMA)
+                    (*pos)++;
+            }
+            if (*pos < count && tokens[*pos].type == TOK_RPAREN)
+                (*pos)++;
+        }
+        return node;
+    }
+
     return NULL;
 }
 

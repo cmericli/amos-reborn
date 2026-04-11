@@ -428,7 +428,7 @@ REQ-INT-023: String subtraction operator -- removes substrings
   Acceptance: A$ - B$ returns A$ with all occurrences of B$ removed
   Level: 2 (subsystem)
   Source: Blueprint S2 "Notable Quirks" -- "String subtraction operator (removes substrings)"
-  Status: TODO -- No string minus handling in executor.c binary op dispatch
+  Status: IMPL -- eval_node() TOK_MINUS checks for string operands, walks removing occurrences
 ```
 
 ```
@@ -452,7 +452,7 @@ REQ-INT-026: NOT operator is bitwise (NOT 0 = -1, NOT -1 = 0)
   Acceptance: NOT(0) returns -1; NOT(-1) returns 0; NOT(x) returns bitwise complement of x
   Level: 1 (unit)
   Source: Blueprint S2 "Expression Evaluator" + "Notable Quirks" (TRUE=-1 implies bitwise NOT)
-  Status: PARTIAL -- TOK_NOT exists but needs verification of bitwise vs logical behavior
+  Status: IMPL -- TOK_NOT performs bitwise complement (~x); verified NOT(0)=-1, NOT(-1)=0, NOT(5)=-6
 ```
 
 ---
@@ -462,8 +462,8 @@ REQ-INT-026: NOT operator is bitwise (NOT 0 = -1, NOT -1 = 0)
 | Category | IMPL | PARTIAL | TODO | Total |
 |----------|------|---------|------|-------|
 | REQ-SYS  | 8    | 5       | 13   | 26    |
-| REQ-INT  | 6    | 4       | 16   | 26    |
-| **Total**| **14** | **9** | **29** | **52** |
+| REQ-INT  | 8    | 2       | 16   | 26    |
+| **Total**| **16** | **7** | **29** | **52** |
 
 ### Priority Implementation Order
 

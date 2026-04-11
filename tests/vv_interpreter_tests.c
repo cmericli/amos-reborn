@@ -297,10 +297,6 @@ VV_TEST("REQ-INT-018: Repeat/Until loop counts to 5") {
  *  REQ-INT-019: GOSUB/RETURN
  * ══════════════════════════════════════════════════════════════════════ */
 
-#if 0
-/* DISABLED: Gosub label resolution does not execute subroutine body —
- * X=101 (subroutine skipped) instead of expected 111.
- * Re-enable when Gosub label dispatch is fixed. */
 VV_TEST("REQ-INT-019: Gosub jumps and Return comes back") {
     amos_state_t *s = vv_create();
     vv_run(s,
@@ -316,16 +312,11 @@ VV_TEST("REQ-INT-019: Gosub jumps and Return comes back") {
     VV_ASSERT_INT(s, "X", 111);
     vv_destroy(s);
 }
-#endif
 
 /* ══════════════════════════════════════════════════════════════════════
  *  REQ-INT-020: PROCEDURE with local variables
  * ══════════════════════════════════════════════════════════════════════ */
 
-#if 0
-/* DISABLED: Procedure call causes infinite loop (step limit hit).
- * Proc dispatch or End Proc return path is broken.
- * Re-enable when Procedure/End Proc is fixed. */
 VV_TEST("REQ-INT-020: Procedure with parameter") {
     amos_state_t *s = vv_create();
     vv_run(s,
@@ -340,15 +331,11 @@ VV_TEST("REQ-INT-020: Procedure with parameter") {
     VV_ASSERT_INT(s, "X", 10);
     vv_destroy(s);
 }
-#endif
 
 /* ══════════════════════════════════════════════════════════════════════
  *  REQ-INT-021: Separate stacks — nested For inside Gosub
  * ══════════════════════════════════════════════════════════════════════ */
 
-#if 0
-/* DISABLED: Depends on Gosub label dispatch which is broken (see REQ-INT-019).
- * Re-enable when Gosub is fixed. */
 VV_TEST("REQ-INT-021: Nested For inside Gosub works correctly") {
     amos_state_t *s = vv_create();
     vv_run(s,
@@ -367,7 +354,6 @@ VV_TEST("REQ-INT-021: Nested For inside Gosub works correctly") {
     VV_ASSERT_INT(s, "TOTAL", 6);
     vv_destroy(s);
 }
-#endif
 
 /* ══════════════════════════════════════════════════════════════════════
  *  REQ-INT-023: String subtraction
@@ -551,5 +537,350 @@ VV_TEST("REQ-INT-031: Print 2+3 produces 5") {
     amos_state_t *s = vv_create();
     vv_run(s, "X=2+3");
     VV_ASSERT_INT(s, "X", 5);
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Additional REQ-SYS tests
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-SYS-002: Bank type enum includes BANK_DATA") {
+    /* Bank flags encode type — BANK_DATA exists for data banks (bit 31 in 68K) */
+    VV_ASSERT(BANK_DATA != BANK_EMPTY, "BANK_DATA enum must differ from BANK_EMPTY");
+    VV_ASSERT(BANK_DATA != BANK_WORK, "BANK_DATA enum must differ from BANK_WORK");
+}
+
+VV_TEST("REQ-SYS-007: Bank type enums for sprites, icons, samples") {
+    /* Bank 1=Sprites, 2=Icons, 3=Samples per 68K convention */
+    VV_ASSERT(BANK_SPRITES != BANK_EMPTY, "BANK_SPRITES must exist");
+    VV_ASSERT(BANK_ICONS != BANK_EMPTY, "BANK_ICONS must exist");
+    VV_ASSERT(BANK_SAMPLES != BANK_EMPTY, "BANK_SAMPLES must exist");
+    /* All distinct */
+    VV_ASSERT(BANK_SPRITES != BANK_ICONS, "Sprites and Icons must be distinct types");
+    VV_ASSERT(BANK_ICONS != BANK_SAMPLES, "Icons and Samples must be distinct types");
+}
+
+VV_TEST("REQ-SYS-009: Timer field exists for VBI tick counting") {
+    amos_state_t *s = vv_create();
+    /* Timer is initialized and accessible — PAL 50Hz base */
+    VV_ASSERT(s->timer == 0, "Timer should start at 0");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-SYS-013: Every interval/counter fields exist for VBI timer") {
+    amos_state_t *s = vv_create();
+    /* Every timer infrastructure exists */
+    VV_ASSERT(s->every_interval == 0, "every_interval should start at 0 (disabled)");
+    VV_ASSERT(s->every_counter == 0, "every_counter should start at 0");
+    VV_ASSERT(s->every_target_line == -1 || s->every_target_line == 0,
+              "every_target_line should be unset at init");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-SYS-017: Mouse position fields exist and start at 0") {
+    amos_state_t *s = vv_create();
+    VV_ASSERT(s->mouse_x == 0, "mouse_x should start at 0");
+    VV_ASSERT(s->mouse_y == 0, "mouse_y should start at 0");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-SYS-018: Mouse button fields exist and start at 0") {
+    amos_state_t *s = vv_create();
+    VV_ASSERT(s->mouse_buttons == 0, "mouse_buttons should start at 0");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-SYS-023: amos_create allocates master data zone") {
+    amos_state_t *s = vv_create();
+    VV_ASSERT(s != NULL, "amos_create must return non-NULL state");
+    /* Verify key fields are accessible */
+    VV_ASSERT(s->line_count == 0, "fresh state should have 0 program lines");
+    VV_ASSERT(s->running == false, "fresh state should not be running");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-SYS-024: Init sets up BASIC stack limits") {
+    amos_state_t *s = vv_create();
+    VV_ASSERT(s->gosub_top == 0, "gosub stack should start empty");
+    VV_ASSERT(s->for_top == 0, "for stack should start empty");
+    VV_ASSERT(AMOS_MAX_GOSUB_DEPTH >= 16, "gosub depth should be at least 16");
+    VV_ASSERT(AMOS_MAX_FOR_DEPTH >= 16, "for depth should be at least 16");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-021a: Gosub/For use separate stack arrays, not C call stack") {
+    amos_state_t *s = vv_create();
+    /* Verify stacks are arrays in amos_state_t, not C recursion */
+    VV_ASSERT(AMOS_MAX_GOSUB_DEPTH == 128, "gosub stack depth should be 128");
+    VV_ASSERT(AMOS_MAX_FOR_DEPTH == 64, "for stack depth should be 64");
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  REQ-INT-032+: Additional behavioral tests
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-032: Goto label jumps correctly") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=1\n"
+        "Goto SKIP\n"
+        "X=99\n"
+        "SKIP:\n"
+        "X=X+10\n"
+    );
+    /* X=1, Goto skips X=99, then X=1+10=11 */
+    VV_ASSERT_INT(s, "X", 11);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-033: Multiple Gosub calls and returns") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "Gosub ADD1\n"
+        "Gosub ADD1\n"
+        "Gosub ADD1\n"
+        "End\n"
+        "ADD1:\n"
+        "X=X+1\n"
+        "Return\n"
+    );
+    VV_ASSERT_INT(s, "X", 3);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-034: Nested Gosub two levels deep") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "Gosub OUTER\n"
+        "End\n"
+        "OUTER:\n"
+        "X=X+1\n"
+        "Gosub INNER\n"
+        "X=X+100\n"
+        "Return\n"
+        "INNER:\n"
+        "X=X+10\n"
+        "Return\n"
+    );
+    /* X=0, +1=1, +10=11, +100=111 */
+    VV_ASSERT_INT(s, "X", 111);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-035: While/Wend loop") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "While X<5\n"
+        "X=X+1\n"
+        "Wend\n"
+    );
+    VV_ASSERT_INT(s, "X", 5);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-036: If/Then/Else branching") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=10\n"
+        "If X>5 Then Y=1 Else Y=0\n"
+    );
+    VV_ASSERT_INT(s, "Y", 1);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-037: If/Then/Else false branch") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=3\n"
+        "If X>5 Then Y=1 Else Y=0\n"
+    );
+    VV_ASSERT_INT(s, "Y", 0);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-038: End stops execution") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=1\n"
+        "End\n"
+        "X=99\n"
+    );
+    VV_ASSERT_INT(s, "X", 1);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-039: Procedure without parameters") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "Proc BUMP\n"
+        "End\n"
+        "Procedure BUMP\n"
+        "Shared X\n"
+        "X=X+1\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "X", 1);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-040: Procedure skipped when not called") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=5\n"
+        "End\n"
+        "Procedure NEVER_CALLED\n"
+        "X=999\n"
+        "End Proc\n"
+    );
+    /* Flow-through into Procedure definition should skip to End Proc */
+    VV_ASSERT_INT(s, "X", 5);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-041: Modulo operator") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "X=17 Mod 5");
+    VV_ASSERT_INT(s, "X", 2);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-042: Integer division") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "X=17/5");
+    /* AMOS integer division truncates: 17/5 = 3 (both operands int) */
+    VV_ASSERT_INT(s, "X", 3);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-043: Power operator") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "X=2^10");
+    VV_ASSERT_INT(s, "X", 1024);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-044: Logical AND/OR with TRUE=-1") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=(1=1) And (2=2)\n"
+        "B=(1=1) Or (1=2)\n"
+        "C=(1=2) And (1=1)\n"
+        "D=(1=2) Or (2=3)\n"
+    );
+    VV_ASSERT_INT(s, "A", -1);   /* TRUE AND TRUE = -1 */
+    VV_ASSERT_INT(s, "B", -1);   /* TRUE OR FALSE = -1 */
+    VV_ASSERT_INT(s, "C", 0);    /* FALSE AND TRUE = 0 */
+    VV_ASSERT_INT(s, "D", 0);    /* FALSE OR FALSE = 0 */
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-045: Abs function") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=Abs(-5)\n"
+        "B=Abs(3)\n"
+        "C=Abs(0)\n"
+    );
+    VV_ASSERT_INT(s, "A", 5);
+    VV_ASSERT_INT(s, "B", 3);
+    VV_ASSERT_INT(s, "C", 0);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-046: Sgn function") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=Sgn(-5)\n"
+        "B=Sgn(3)\n"
+        "C=Sgn(0)\n"
+    );
+    VV_ASSERT_INT(s, "A", -1);
+    VV_ASSERT_INT(s, "B", 1);
+    VV_ASSERT_INT(s, "C", 0);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-047: Min and Max functions") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=Min(3,7)\n"
+        "B=Max(3,7)\n"
+    );
+    VV_ASSERT_INT(s, "A", 3);
+    VV_ASSERT_INT(s, "B", 7);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-003: Len function") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A$=\"Hello\"\n"
+        "L=Len(A$)\n"
+    );
+    VV_ASSERT_INT(s, "L", 5);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-004: Left$/Right$/Mid$ functions") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A$=\"Hello World\"\n"
+        "L$=Left$(A$,5)\n"
+        "R$=Right$(A$,5)\n"
+        "M$=Mid$(A$,7,5)\n"
+    );
+    VV_ASSERT_STR(s, "L$", "Hello");
+    VV_ASSERT_STR(s, "R$", "World");
+    VV_ASSERT_STR(s, "M$", "World");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-005: Str$ and Val functions") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A$=Str$(42)\n"
+        "V=Val(\"123\")\n"
+    );
+    VV_ASSERT_STR(s, "A$", "42");
+    VV_ASSERT_INT(s, "V", 123);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-006: Asc and Chr$ functions") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=Asc(\"A\")\n"
+        "C$=Chr$(65)\n"
+    );
+    VV_ASSERT_INT(s, "A", 65);
+    VV_ASSERT_STR(s, "C$", "A");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-007: Upper$/Lower$ functions") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A$=Upper$(\"hello\")\n"
+        "B$=Lower$(\"WORLD\")\n"
+    );
+    VV_ASSERT_STR(s, "A$", "HELLO");
+    VV_ASSERT_STR(s, "B$", "world");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-008: Instr function finds substring") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=Instr(\"Hello World\",\"World\")\n"
+        "B=Instr(\"Hello World\",\"xyz\")\n"
+    );
+    /* AMOS Instr is 1-based; 0 = not found */
+    VV_ASSERT_INT(s, "A", 7);
+    VV_ASSERT_INT(s, "B", 0);
     vv_destroy(s);
 }

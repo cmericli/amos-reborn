@@ -146,6 +146,10 @@ add_executable(amos-test
     tests/vv_framework.c
     tests/vv_example_tests.c
     tests/vv_interpreter_tests.c
+    tests/vv_display_tests.c
+    tests/vv_audio_tests.c
+    tests/vv_amal_tests.c
+    tests/vv_format_tests.c
     ${INTERPRETER_SOURCES}
     src/display/screen.c
     src/display/font_topaz.c

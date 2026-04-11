@@ -639,7 +639,12 @@ static eval_result_t eval_function(amos_state_t *state, amos_node_t *node)
         int idx = to_int(args[0]);
         amos_screen_t *scr = &state->screens[state->current_screen];
         if (idx >= 0 && idx < 256 && scr->active) {
-            result = make_int((int32_t)scr->palette[idx]);
+            /* Convert RGBA32 back to AMOS $0RGB (4-bit per channel) */
+            uint32_t rgba = scr->palette[idx];
+            int r = (rgba & 0xFF) >> 4;         /* low byte = R */
+            int g = ((rgba >> 8) & 0xFF) >> 4;   /* next byte = G */
+            int b = ((rgba >> 16) & 0xFF) >> 4;  /* next byte = B */
+            result = make_int((r << 8) | (g << 4) | b);
         } else {
             result = make_int(0);
         }
@@ -947,6 +952,15 @@ static int find_line_index(amos_state_t *state, int line_number)
 static int find_label(amos_state_t *state, const char *name)
 {
     for (int i = 0; i < state->line_count; i++) {
+        /* Lazy-parse if AST not yet cached (labels after current line) */
+        if (!state->lines[i].ast && state->lines[i].text) {
+            amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
+            if (tl && tl->count > 0) {
+                int p = 0;
+                state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
+            }
+            amos_token_list_free(tl);
+        }
         if (state->lines[i].ast && state->lines[i].ast->type == NODE_LABEL &&
             state->lines[i].ast->token.sval &&
             strcasecmp(state->lines[i].ast->token.sval, name) == 0) {
@@ -2386,6 +2400,22 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     break;
                 }
 
+                case TOK_SCREEN_OFFSET: {
+                    /* Screen Offset id,x,y */
+                    int args[3] = {0, 0, 0};
+                    for (int i = 0; i < node->child_count && i < 3; i++) {
+                        eval_result_t r = eval_node(state, node->children[i]);
+                        args[i] = to_int(r);
+                        free_result(&r);
+                    }
+                    int sid = args[0];
+                    if (sid >= 0 && sid < AMOS_MAX_SCREENS && state->screens[sid].active) {
+                        state->screens[sid].offset_x = args[1];
+                        state->screens[sid].offset_y = args[2];
+                    }
+                    break;
+                }
+
                 case TOK_DOKE: {
                     /* Doke addr,value — stub, no-op */
                     break;
@@ -2435,16 +2465,28 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 }
 
                 case TOK_ERASE: {
-                    /* Erase bank_num */
+                    /* Erase bank_num  OR  Erase All */
                     if (node->child_count > 0) {
-                        eval_result_t bn = eval_node(state, node->children[0]);
-                        int bank = to_int(bn);
-                        free_result(&bn);
-                        if (bank >= 1 && bank < AMOS_MAX_BANKS) {
-                            free(state->banks[bank].data);
-                            state->banks[bank].data = NULL;
-                            state->banks[bank].size = 0;
-                            state->banks[bank].type = BANK_EMPTY;
+                        /* Check for "Erase All" — child is identifier "All" */
+                        if (node->children[0]->type == NODE_VARIABLE &&
+                            node->children[0]->token.sval &&
+                            strcasecmp(node->children[0]->token.sval, "All") == 0) {
+                            for (int b = 1; b < AMOS_MAX_BANKS; b++) {
+                                free(state->banks[b].data);
+                                state->banks[b].data = NULL;
+                                state->banks[b].size = 0;
+                                state->banks[b].type = BANK_EMPTY;
+                            }
+                        } else {
+                            eval_result_t bn = eval_node(state, node->children[0]);
+                            int bank = to_int(bn);
+                            free_result(&bn);
+                            if (bank >= 1 && bank < AMOS_MAX_BANKS) {
+                                free(state->banks[bank].data);
+                                state->banks[bank].data = NULL;
+                                state->banks[bank].size = 0;
+                                state->banks[bank].type = BANK_EMPTY;
+                            }
                         }
                     }
                     break;
@@ -2710,37 +2752,57 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
         case NODE_GOTO: {
             if (node->child_count > 0) {
-                eval_result_t target = eval_node(state, node->children[0]);
-                int idx = find_line_index(state, to_int(target));
+                int idx = -1;
+
+                /* If child is a bare identifier, try as label name first */
+                if (node->children[0]->type == NODE_VARIABLE &&
+                    node->children[0]->token.sval) {
+                    idx = find_label(state, node->children[0]->token.sval);
+                }
+
+                /* Fall back to evaluating as expression (line number) */
+                if (idx < 0) {
+                    eval_result_t target = eval_node(state, node->children[0]);
+                    idx = find_line_index(state, to_int(target));
+                    free_result(&target);
+                }
+
                 if (idx >= 0) {
                     state->current_line = idx;
                     state->current_pos = 0;
                 }
-                free_result(&target);
             }
             break;
         }
 
         case NODE_GOSUB: {
             if (node->child_count > 0) {
-                eval_result_t target = eval_node(state, node->children[0]);
-                int idx;
+                int idx = -1;
 
-                /* Try as label first if it's a string */
-                if (target.type == VAR_STRING) {
-                    idx = find_label(state, target.sval);
-                } else {
-                    idx = find_line_index(state, to_int(target));
+                /* If child is a bare identifier, try as label name first */
+                if (node->children[0]->type == NODE_VARIABLE &&
+                    node->children[0]->token.sval) {
+                    idx = find_label(state, node->children[0]->token.sval);
+                }
+
+                /* Fall back to evaluating as expression (line number or string) */
+                if (idx < 0) {
+                    eval_result_t target = eval_node(state, node->children[0]);
+                    if (target.type == VAR_STRING) {
+                        idx = find_label(state, target.sval);
+                    } else {
+                        idx = find_line_index(state, to_int(target));
+                    }
+                    free_result(&target);
                 }
 
                 if (idx >= 0 && state->gosub_top < AMOS_MAX_GOSUB_DEPTH) {
                     gosub_entry_t *ge = &state->gosub_stack[state->gosub_top++];
-                    ge->return_line = state->current_line;
-                    ge->return_pos = state->current_pos;
+                    ge->return_line = state->current_line + 1;  /* line AFTER the Gosub */
+                    ge->return_pos = 0;
                     state->current_line = idx;
                     state->current_pos = 0;
                 }
-                free_result(&target);
             }
             break;
         }
@@ -2779,9 +2841,37 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             }
 
             if (target >= 0 && state->gosub_top < AMOS_MAX_GOSUB_DEPTH) {
-                /* Push return address */
+                /* Bind arguments to parameter names from the Procedure definition */
+                amos_node_t *proc_def = state->lines[target].ast;
+                if (proc_def) {
+                    int param_count = proc_def->child_count;
+                    int arg_count = node->child_count;
+                    int bind_count = param_count < arg_count ? param_count : arg_count;
+                    for (int i = 0; i < bind_count; i++) {
+                        const char *param_name = proc_def->children[i]->token.sval;
+                        if (param_name) {
+                            eval_result_t val = eval_node(state, node->children[i]);
+                            switch (val.type) {
+                                case VAR_INTEGER:
+                                    amos_var_set_int(state, param_name, val.ival);
+                                    break;
+                                case VAR_FLOAT:
+                                    amos_var_set_float(state, param_name, val.fval);
+                                    break;
+                                case VAR_STRING:
+                                    amos_var_set_string(state, param_name, val.sval ? val.sval : "");
+                                    break;
+                                default:
+                                    break;
+                            }
+                            free_result(&val);
+                        }
+                    }
+                }
+
+                /* Push return address — line AFTER the Proc call */
                 gosub_entry_t *ge = &state->gosub_stack[state->gosub_top++];
-                ge->return_line = state->current_line;
+                ge->return_line = state->current_line + 1;
                 ge->return_pos = 0;
                 /* Jump to the line after the Procedure definition */
                 state->current_line = target + 1;
@@ -2832,7 +2922,7 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 free_result(&cond);
                 if (!is_true) {
                     int target = scan_to_wend(state, state->current_line);
-                    state->current_line = target;
+                    state->current_line = target + 1;  /* skip past Wend */
                 }
                 /* If true, continue to next line (the body) */
             }
@@ -2944,10 +3034,10 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
                 if (target_line >= 0) {
                     if (node->token.type == TOK_GOSUB) {
-                        /* Push return address */
+                        /* Push return address — line AFTER the On...Gosub */
                         if (state->gosub_top < AMOS_MAX_GOSUB_DEPTH) {
                             gosub_entry_t *ge = &state->gosub_stack[state->gosub_top++];
-                            ge->return_line = state->current_line;
+                            ge->return_line = state->current_line + 1;
                             ge->return_pos = 0;
                         }
                     }
