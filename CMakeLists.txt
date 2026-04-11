@@ -143,6 +143,8 @@ add_executable(amos-test
     tests/test_expressions.c
     tests/test_iff.c
     tests/test_bank_loader.c
+    tests/vv_framework.c
+    tests/vv_example_tests.c
     ${INTERPRETER_SOURCES}
     src/display/screen.c
     src/display/font_topaz.c
@@ -158,6 +160,7 @@ add_executable(amos-test
     src/platform/input.c
 )
 target_compile_definitions(amos-test PRIVATE AMOS_TESTING=1)
+target_include_directories(amos-test PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 
 # Headless .AMOS file tester
 add_executable(test-load
@@ -177,3 +180,23 @@ add_executable(test-load
     src/platform/input.c
 )
 target_compile_definitions(test-load PRIVATE AMOS_TESTING=1)
+
+# Headless screenshot capture tool (oracle for visual regression)
+add_executable(oracle-capture
+    tools/oracle_capture.c
+    ${INTERPRETER_SOURCES}
+    src/display/screen.c
+    src/display/font_topaz.c
+    src/display/compositor.c
+    src/display/sprites.c
+    src/display/iff_loader.c
+    src/display/iff_commands.c
+    src/display/bank_loader.c
+    src/display/bank_commands.c
+    src/audio/paula.c
+    src/audio/effects.c
+    src/audio/tracker.c
+    src/platform/input.c
+)
+target_compile_definitions(oracle-capture PRIVATE AMOS_TESTING=1)
+target_include_directories(oracle-capture PRIVATE ${CMAKE_SOURCE_DIR}/third_party)

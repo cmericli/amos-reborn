@@ -11,15 +11,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
+
+static volatile int timed_out = 0;
+static void alarm_handler(int sig) {
+    (void)sig;
+    timed_out = 1;
+}
 
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <file.AMOS> [max_lines]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <file.AMOS> [max_lines] [--no-exec]\n", argv[0]);
         return 1;
     }
 
-    int max_lines = argc > 2 ? atoi(argv[2]) : 50;
+    int max_lines = 50;
+    int skip_exec = 0;
+    int dump_only = 0;
+    for (int a = 2; a < argc; a++) {
+        if (strcmp(argv[a], "--no-exec") == 0) skip_exec = 1;
+        else if (strcmp(argv[a], "--dump") == 0) dump_only = 1;
+        else if (argv[a][0] != '-') max_lines = atoi(argv[a]);
+    }
 
     amos_state_t *state = amos_create();
     if (!state) {
@@ -44,6 +59,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "%4d: %s\n", i + 1, state->lines[i].text ? state->lines[i].text : "(null)");
     }
     fprintf(stderr, "=== End source ===\n\n");
+
+    if (dump_only) goto done;
 
     /* Try to parse each line */
     fprintf(stderr, "=== Parsing lines ===\n");
@@ -82,12 +99,18 @@ int main(int argc, char *argv[])
     }
     fprintf(stderr, "\nParsing: %d OK, %d FAILED (of %d lines)\n\n", parse_ok, parse_fail, show);
 
-    /* Try headless execution of first N lines */
-    fprintf(stderr, "=== Executing (headless, first %d lines) ===\n", show);
+    if (skip_exec) goto done;
+
+    /* Try headless execution of first N lines (limited steps to avoid infinite loops) */
+    fprintf(stderr, "=== Executing (headless, max 500 steps, 3s timeout) ===\n");
+    signal(SIGALRM, alarm_handler);
+    alarm(3);  /* 3 second timeout */
+    timed_out = 0;
     state->running = true;
     state->current_line = 0;
     int executed = 0;
-    while (state->running && state->current_line < show) {
+    int max_steps = 500;
+    while (state->running && state->current_line < state->line_count && executed < max_steps && !timed_out) {
         int before = state->current_line;
         amos_execute_line(state, state->current_line);
 
@@ -102,15 +125,16 @@ int main(int argc, char *argv[])
             state->current_line++;
         }
         executed++;
-
-        /* Safety: don't infinite loop */
-        if (executed > show * 10) {
-            fprintf(stderr, "  (execution limit reached)\n");
-            break;
-        }
+    }
+    alarm(0);  /* cancel timer */
+    if (timed_out) {
+        fprintf(stderr, "  (execution timed out after 3s)\n");
+    } else if (executed >= max_steps) {
+        fprintf(stderr, "  (execution limit reached — %d steps)\n", executed);
     }
     fprintf(stderr, "Executed %d steps\n", executed);
 
+done:
     amos_destroy(state);
     return parse_fail > 0 ? 1 : 0;
 }

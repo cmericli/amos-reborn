@@ -1,0 +1,8 @@
+Rem REQ-INT-005: TRUE must equal -1
+Rem Expected output: "TRUE=-1" and "PASS"
+Print "TRUE=";True
+If True=-1
+   Print "PASS"
+Else
+   Print "FAIL: True is ";True
+End If

@@ -1,0 +1,8 @@
+# Runtime output directories
+output/
+
+# Staging directory (FS-UAE DH2: mount point)
+staging/
+
+# Keep reference images tracked
+!reference/

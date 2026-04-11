@@ -1,0 +1,57 @@
+# FS-UAE Configuration for AMOS Reborn Oracle Pipeline
+# Model: A1200 with Kickstart 3.1
+#
+# DH0: = Workbench boot disk (read-only)
+# DH1: = AMOS Professional disk (read-only)
+# DH2: = Staging directory (read-write, test program injection)
+#
+# Usage: fs-uae oracle/config/oracle.fs-uae
+# Paths are relative to the directory where fs-uae is launched (project root).
+
+[fs-uae]
+
+# Hardware model
+amiga_model = A1200
+
+# Kickstart ROM
+kickstart_file = oracle/roms/kick31.rom
+
+# DH0: Workbench boot disk
+hard_drive_0 = oracle/disks/workbench.hdf
+hard_drive_0_label = Workbench
+
+# DH1: AMOS Professional (read-only)
+hard_drive_1 = oracle/disks/amos-pro.hdf
+hard_drive_1_label = AMOSPro
+hard_drive_1_read_only = 1
+
+# DH2: Staging directory (test program injection point)
+hard_drive_2 = oracle/staging
+hard_drive_2_label = Staging
+
+# Display — hidden window for headless capture
+window_hidden = 1
+fullscreen = 0
+zoom = 1x
+
+# Performance — skip audio for speed
+audio_mode = none
+
+# Screenshots output directory
+screenshots_output_prefix = oracle/output/oracle/capture
+
+# Warp mode — boot as fast as possible, controlled by script via input events
+# warp_mode = 1
+
+# Accurate chipset for faithful rendering
+accuracy = 1
+
+# No floppy drives needed
+floppy_drive_count = 0
+
+# Joystick not needed
+joystick_port_0_mode = nothing
+joystick_port_1_mode = nothing
+
+# Log level (0=quiet, 1=normal)
+log_level = 0

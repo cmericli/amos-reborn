@@ -761,6 +761,26 @@ static const struct {
     {0x1DE0, "Hide", TF_NONE},                /* Pro Hide */
     {0x1E32, "Mouse Key", TF_NONE},           /* Pro Mouse Key */
     {0x1FBC, "Amal On", TF_NONE},             /* Pro Amal On */
+    {0x012C, "Double Buffer", TF_NONE},         /* Pro Double Buffer */
+    {0x12CE, "Timer", TF_NONE},                /* Pro Timer */
+    {0x1B9E, "Bob ", TF_NONE},                 /* Pro Bob */
+    {0x0E2C, "Autoback ", TF_NONE},            /* Pro Autoback */
+    {0x0598, "Str$", TF_NONE},                /* Pro Str$ */
+    {0x0AE2, "Screen Swap", TF_NONE},         /* Pro Screen Swap */
+    {0x0D90, "Set Rainbow ", TF_NONE},         /* Pro Set Rainbow */
+    {0x1AF6, "Bob Clear", TF_NONE},            /* Pro Bob Clear */
+    {0x1B06, "Bob Draw", TF_NONE},             /* Pro Bob Draw */
+    {0x1B14, "Bobsprite Col", TF_NONE},        /* Pro Bobsprite Col */
+    {0x1B52, "Col", TF_NONE},                  /* Pro Col */
+    {0x1E54, "Limit Mouse", TF_NONE},          /* Pro Limit Mouse */
+    {0x207A, "Update Off", TF_NONE},           /* Pro Update Off */
+    {0x208A, "Update On", TF_NONE},            /* Pro Update On */
+    {0x209A, "Update Every ", TF_NONE},        /* Pro Update Every */
+    {0x20AE, "Update", TF_NONE},               /* Pro Update */
+    {0x0316, "On ", TF_BRANCH},               /* Pro On */
+    {0x1632, "Reserve Zone", TF_NONE},         /* Pro Reserve Zone */
+    {0x199E, "Sprite Off", TF_NONE},           /* Pro Sprite Off */
+    {0x1DEA, "Show On", TF_NONE},              /* Pro Show On */
     {0x2946, "Err$", TF_NONE},                /* Pro Err$ (error message) */
 
     /* Pro-only tokens */

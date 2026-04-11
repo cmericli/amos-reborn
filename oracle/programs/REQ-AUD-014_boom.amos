@@ -1,0 +1,5 @@
+Rem REQ-AUD-014: Boom command must not crash
+Rem Expected: "BOOM FIRED" printed, no crash
+Boom
+Print "BOOM FIRED"
+Print "PASS"

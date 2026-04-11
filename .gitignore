@@ -5,3 +5,11 @@ build/
 *.dylib
 .DS_Store
 compile_commands.json
+
+# Oracle pipeline — copyrighted Amiga assets
+oracle/disks/*.adf
+oracle/disks/*.ADF
+oracle/disks/*.hdf
+oracle/roms/*.rom
+oracle/staging/
+oracle/output/

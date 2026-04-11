@@ -1,0 +1,9 @@
+Rem REQ-GFX-001: Default screen is 320x256 with standard palette
+Rem Expected: Default screen opens, colors drawn, dimensions printed
+Screen Open 0,320,256,32,Lowres
+Cls 0
+Ink 1 : Draw 0,0 To 319,0
+Ink 2 : Draw 0,1 To 319,1
+Ink 3 : Draw 0,2 To 319,2
+Print "W=";Screen Width;" H=";Screen Height
+Print "PASS"

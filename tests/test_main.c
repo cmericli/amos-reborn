@@ -14,6 +14,7 @@ extern int test_executor_all(void);
 extern int test_expressions_all(void);
 extern int test_iff_all(void);
 extern int test_bank_loader_all(void);
+extern int test_vv_all(void);
 
 typedef struct {
     const char *name;
@@ -27,6 +28,7 @@ static test_suite_t suites[] = {
     {"Expressions",  test_expressions_all},
     {"IFF Loader",   test_iff_all},
     {"Bank Loader",  test_bank_loader_all},
+    {"V&V Tests",    test_vv_all},
     {NULL, NULL}
 };
 
