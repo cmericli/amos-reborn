@@ -11,35 +11,45 @@
 #include <string.h>
 #include <math.h>
 
-/* ── Default Amiga Palette (32 colors, classic AMOS) ─────────────── */
+/* ── Default Amiga Palette (32 colors) ───────────────────────────── */
 
-/* AMOS default palette: packed for GL_RGBA GL_UNSIGNED_BYTE (little-endian safe) */
+/*
+ * Authentic AMOS Professional default palette from PI_DefEPa in
+ * +Interpreter_Config.s (lines 86-89):
+ *
+ *   dc.w $000,$A40,$FFF,$000,$F00,$0F0,$00F,$666
+ *   dc.w $555,$333,$733,$373,$773,$337,$737,$377
+ *   dc.w 0,0,0,0,0,0,0,0
+ *   dc.w 0,0,0,0,0,0,0,0
+ *
+ * Each $0RGB nibble maps to 8-bit via replication: $A → 0xAA (A*17).
+ */
 const uint32_t amos_default_palette_32[32] = {
-    AMOS_RGBA(0x00,0x00,0x00,0xFF), /* 0:  Black */
-    AMOS_RGBA(0x00,0x00,0xAA,0xFF), /* 1:  Dark Blue */
-    AMOS_RGBA(0x00,0xAA,0x00,0xFF), /* 2:  Dark Green */
-    AMOS_RGBA(0x00,0xAA,0xAA,0xFF), /* 3:  Dark Cyan */
-    AMOS_RGBA(0xAA,0x00,0x00,0xFF), /* 4:  Dark Red */
-    AMOS_RGBA(0xAA,0x00,0xAA,0xFF), /* 5:  Dark Magenta */
-    AMOS_RGBA(0xAA,0x55,0x00,0xFF), /* 6:  Brown */
-    AMOS_RGBA(0xAA,0xAA,0xAA,0xFF), /* 7:  Light Gray */
-    AMOS_RGBA(0x55,0x55,0x55,0xFF), /* 8:  Dark Gray */
-    AMOS_RGBA(0x55,0x55,0xFF,0xFF), /* 9:  Blue */
-    AMOS_RGBA(0x55,0xFF,0x55,0xFF), /* 10: Green */
-    AMOS_RGBA(0x55,0xFF,0xFF,0xFF), /* 11: Cyan */
-    AMOS_RGBA(0xFF,0x55,0x55,0xFF), /* 12: Red */
-    AMOS_RGBA(0xFF,0x55,0xFF,0xFF), /* 13: Magenta */
-    AMOS_RGBA(0xFF,0xFF,0x55,0xFF), /* 14: Yellow */
-    AMOS_RGBA(0xFF,0xFF,0xFF,0xFF), /* 15: White */
-    AMOS_RGBA(0x00,0x00,0x00,0xFF), /* 16-31: Additional colors */
-    AMOS_RGBA(0x11,0x11,0x11,0xFF), AMOS_RGBA(0x22,0x22,0x22,0xFF),
-    AMOS_RGBA(0x33,0x33,0x33,0xFF), AMOS_RGBA(0x44,0x44,0x44,0xFF),
-    AMOS_RGBA(0x55,0x55,0x55,0xFF), AMOS_RGBA(0x66,0x66,0x66,0xFF),
-    AMOS_RGBA(0x77,0x77,0x77,0xFF), AMOS_RGBA(0x88,0x88,0x88,0xFF),
-    AMOS_RGBA(0x99,0x99,0x99,0xFF), AMOS_RGBA(0xAA,0xAA,0xAA,0xFF),
-    AMOS_RGBA(0xBB,0xBB,0xBB,0xFF), AMOS_RGBA(0xCC,0xCC,0xCC,0xFF),
-    AMOS_RGBA(0xDD,0xDD,0xDD,0xFF), AMOS_RGBA(0xEE,0xEE,0xEE,0xFF),
-    AMOS_RGBA(0xFF,0xFF,0xFF,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), /*  0: $000 Black         */
+    AMOS_RGBA(0xAA,0x44,0x00,0xFF), /*  1: $A40 Brown/Orange   */
+    AMOS_RGBA(0xFF,0xFF,0xFF,0xFF), /*  2: $FFF White          */
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), /*  3: $000 Black          */
+    AMOS_RGBA(0xFF,0x00,0x00,0xFF), /*  4: $F00 Red            */
+    AMOS_RGBA(0x00,0xFF,0x00,0xFF), /*  5: $0F0 Green          */
+    AMOS_RGBA(0x00,0x00,0xFF,0xFF), /*  6: $00F Blue           */
+    AMOS_RGBA(0x66,0x66,0x66,0xFF), /*  7: $666 Gray           */
+    AMOS_RGBA(0x55,0x55,0x55,0xFF), /*  8: $555 Dark Gray      */
+    AMOS_RGBA(0x33,0x33,0x33,0xFF), /*  9: $333 Darker Gray    */
+    AMOS_RGBA(0x77,0x33,0x33,0xFF), /* 10: $733 Pinkish        */
+    AMOS_RGBA(0x33,0x77,0x33,0xFF), /* 11: $373 Greenish       */
+    AMOS_RGBA(0x77,0x77,0x33,0xFF), /* 12: $773 Yellowish      */
+    AMOS_RGBA(0x33,0x33,0x77,0xFF), /* 13: $337 Blueish        */
+    AMOS_RGBA(0x77,0x33,0x77,0xFF), /* 14: $737 Magenta-ish    */
+    AMOS_RGBA(0x33,0x77,0x77,0xFF), /* 15: $377 Cyan-ish       */
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), /* 16-31: Black (unused)   */
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF), AMOS_RGBA(0x00,0x00,0x00,0xFF),
+    AMOS_RGBA(0x00,0x00,0x00,0xFF),
 };
 
 /* ── Screen Management ───────────────────────────────────────────── */
@@ -66,10 +76,22 @@ int amos_screen_open(amos_state_t *state, int id, int w, int h, int depth)
     scr->priority = id;
     scr->display_w = w;
     scr->display_h = h;
-    scr->ink_color = 1;     /* Default pen: color 1 (usually white or blue) */
-    scr->paper_color = 0;   /* Default paper: color 0 (black) */
-    scr->text_pen = 1;
-    scr->text_paper = 0;
+    /*
+     * Default pen/paper from 68K source +W.s line 13656 (Wo3a):
+     *   Paper=1 ($A40 brown), Pen=2 ($FFF white), Cursor=3
+     * Exception: 1-bitplane screens use Paper=0, Pen=1
+     */
+    if (depth == 1) {
+        scr->ink_color = 1;
+        scr->paper_color = 0;
+        scr->text_pen = 1;
+        scr->text_paper = 0;
+    } else {
+        scr->ink_color = 2;
+        scr->paper_color = 1;
+        scr->text_pen = 2;
+        scr->text_paper = 1;
+    }
 
     /* Allocate pixel buffer (RGBA) */
     scr->pixels = calloc(w * h, sizeof(uint32_t));
@@ -81,8 +103,8 @@ int amos_screen_open(amos_state_t *state, int id, int w, int h, int depth)
         scr->palette[i] = amos_default_palette_32[i];
     }
 
-    /* Clear to color 0 */
-    uint32_t bg = scr->palette[0];
+    /* Clear to default paper color (color 1 = $A40 brown in AMOS) */
+    uint32_t bg = scr->palette[1];
     for (int i = 0; i < w * h; i++) {
         scr->pixels[i] = bg;
     }

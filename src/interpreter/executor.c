@@ -1283,11 +1283,16 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 }
 
                 case TOK_CLS: {
-                    int color = 0;
+                    int color;
                     if (node->child_count > 0) {
                         eval_result_t r = eval_node(state, node->children[0]);
                         color = to_int(r);
                         free_result(&r);
+                    } else {
+                        /* Cls with no args clears to paper color (68K: WiCls calls Clw
+                         * which uses WiColFl, derived from WiPaper) */
+                        amos_screen_t *scr = &state->screens[state->current_screen];
+                        color = scr->paper_color;
                     }
                     amos_screen_cls(state, color);
                     break;

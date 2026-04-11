@@ -108,6 +108,35 @@ VV_TEST("REQ-GFX-001: Default screen dimensions are 320x256") {
     vv_destroy(s);
 }
 
+VV_TEST("REQ-GFX-005: Default palette matches PI_DefEPa from 68K source") {
+    /*
+     * From +Interpreter_Config.s lines 86-89:
+     *   dc.w $000,$A40,$FFF,$000,$F00,$0F0,$00F,$666
+     *   dc.w $555,$333,$733,$373,$773,$337,$737,$377
+     */
+    amos_state_t *s = vv_create();
+    amos_screen_t *scr = &s->screens[0];
+    VV_ASSERT_PALETTE(s, 0, 0, AMOS_RGBA(0x00,0x00,0x00,0xFF));  /* $000 */
+    VV_ASSERT_PALETTE(s, 0, 1, AMOS_RGBA(0xAA,0x44,0x00,0xFF));  /* $A40 */
+    VV_ASSERT_PALETTE(s, 0, 2, AMOS_RGBA(0xFF,0xFF,0xFF,0xFF));  /* $FFF */
+    VV_ASSERT_PALETTE(s, 0, 4, AMOS_RGBA(0xFF,0x00,0x00,0xFF));  /* $F00 */
+    VV_ASSERT_PALETTE(s, 0, 5, AMOS_RGBA(0x00,0xFF,0x00,0xFF));  /* $0F0 */
+    VV_ASSERT_PALETTE(s, 0, 6, AMOS_RGBA(0x00,0x00,0xFF,0xFF));  /* $00F */
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-GFX-006: Default pen=2 paper=1 from 68K Wo3a") {
+    /*
+     * From +W.s line 13656: Paper=1, Pen=2 (when depth > 1)
+     * From +W.s line 13664: Paper=0, Pen=1 (when depth == 1)
+     */
+    amos_state_t *s = vv_create();
+    amos_screen_t *scr = &s->screens[0];
+    VV_ASSERT(scr->text_pen == 2, "default Pen should be 2 ($FFF white)");
+    VV_ASSERT(scr->text_paper == 1, "default Paper should be 1 ($A40 brown)");
+    vv_destroy(s);
+}
+
 VV_TEST("REQ-GFX-002: Gr Writing sets drawing mode") {
     amos_state_t *s = vv_create();
     vv_run(s, "Gr Writing 2");
