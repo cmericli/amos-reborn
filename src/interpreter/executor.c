@@ -755,6 +755,36 @@ static eval_result_t eval_node(amos_state_t *state, amos_node_t *node)
                 return result;
             }
 
+            /* String subtraction: remove all occurrences of right from left */
+            if (node->token.type == TOK_MINUS &&
+                left.type == VAR_STRING && right.type == VAR_STRING) {
+                const char *ls = left.sval;
+                const char *rs = right.sval;
+                size_t llen = strlen(ls);
+                size_t rlen = strlen(rs);
+                char *buf = malloc(llen + 1);
+                size_t di = 0;
+                if (rlen == 0) {
+                    /* Subtracting empty string: result is left unchanged */
+                    memcpy(buf, ls, llen);
+                    di = llen;
+                } else {
+                    for (size_t si = 0; si < llen; ) {
+                        if (si + rlen <= llen && memcmp(ls + si, rs, rlen) == 0) {
+                            si += rlen;  /* skip past match */
+                        } else {
+                            buf[di++] = ls[si++];
+                        }
+                    }
+                }
+                buf[di] = '\0';
+                result = make_string(buf);
+                free(buf);
+                free_result(&left);
+                free_result(&right);
+                return result;
+            }
+
             /* String comparison */
             if (left.type == VAR_STRING && right.type == VAR_STRING) {
                 int cmp = strcmp(left.sval, right.sval);

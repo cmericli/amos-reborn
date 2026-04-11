@@ -145,6 +145,7 @@ add_executable(amos-test
     tests/test_bank_loader.c
     tests/vv_framework.c
     tests/vv_example_tests.c
+    tests/vv_interpreter_tests.c
     ${INTERPRETER_SOURCES}
     src/display/screen.c
     src/display/font_topaz.c
