@@ -481,11 +481,18 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         case TOK_SHARED: {
             amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
             n->token.type = TOK_SHARED;
-            /* Skip variable names */
+            /* Capture variable names as children */
             while (!at_end(tokens, *pos, count)) {
-                if (tokens[*pos].type == TOK_IDENTIFIER) (*pos)++;
-                else if (tokens[*pos].type == TOK_COMMA) (*pos)++;
-                else break;
+                if (tokens[*pos].type == TOK_IDENTIFIER) {
+                    amos_node_t *var = alloc_node(NODE_VARIABLE, tokens[*pos].line);
+                    var->token.sval = strdup(tokens[*pos].sval);
+                    add_child(n, var);
+                    (*pos)++;
+                } else if (tokens[*pos].type == TOK_COMMA) {
+                    (*pos)++;
+                } else {
+                    break;
+                }
             }
             return n;
         }

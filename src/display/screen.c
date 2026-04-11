@@ -57,6 +57,10 @@ const uint32_t amos_default_palette_32[32] = {
 int amos_screen_open(amos_state_t *state, int id, int w, int h, int depth)
 {
     if (id < 0 || id >= AMOS_MAX_SCREENS) return -1;
+    if (w < 1) w = 1;
+    if (h < 1) h = 1;
+    if (depth < 1) depth = 1;
+    if (depth > 6) depth = 6;
 
     amos_screen_t *scr = &state->screens[id];
 

@@ -1173,13 +1173,24 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
         case NODE_COMMAND: {
             switch (node->token.type) {
                 case TOK_END_PROC: {
-                    /* End Proc — return to caller (same as Return) */
+                    /* End Proc — discard local vars and return to caller */
+                    amos_proc_scope_pop(state);
                     if (state->gosub_top > 0) {
                         gosub_entry_t *ge = &state->gosub_stack[--state->gosub_top];
                         state->current_line = ge->return_line;
                         state->current_pos = ge->return_pos;
                     } else {
                         state->running = false;
+                    }
+                    break;
+                }
+
+                case TOK_SHARED: {
+                    /* Shared X,Y,Z — register names as shared with caller scope */
+                    for (int i = 0; i < node->child_count; i++) {
+                        if (node->children[i]->token.sval) {
+                            amos_proc_scope_add_shared(state, node->children[i]->token.sval);
+                        }
                     }
                     break;
                 }
@@ -1493,14 +1504,33 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 }
 
                 case TOK_SCREEN_OPEN: {
-                    /* Screen Open id, w, h, depth, mode */
-                    int args[5] = {0, 320, 256, 5, 0};
+                    /* Screen Open id, w, h, colors[, mode]
+                     * AMOS takes color count, not depth. Convert to bitplanes. */
+                    int args[5] = {0, 320, 256, 32, 0};
                     for (int i = 0; i < node->child_count && i < 5; i++) {
                         eval_result_t r = eval_node(state, node->children[i]);
                         args[i] = to_int(r);
                         free_result(&r);
                     }
-                    amos_screen_open(state, args[0], args[1], args[2], args[3]);
+                    /* Validate width: multiple of 16, range 16-1008 */
+                    int w = (args[1] + 15) & ~15;
+                    if (w < 16) w = 16;
+                    if (w > 1008) w = 1008;
+                    /* Validate height: range 1-1023 */
+                    int h = args[2];
+                    if (h < 1) h = 1;
+                    if (h > 1023) h = 1023;
+                    /* Convert color count to depth (bitplanes) */
+                    int colors = args[3];
+                    int depth;
+                    if (colors <= 2)   depth = 1;
+                    else if (colors <= 4)   depth = 2;
+                    else if (colors <= 8)   depth = 3;
+                    else if (colors <= 16)  depth = 4;
+                    else if (colors <= 32)  depth = 5;
+                    else if (colors <= 64)  depth = 6;
+                    else depth = 5;
+                    amos_screen_open(state, args[0], w, h, depth);
                     break;
                 }
 
@@ -2841,31 +2871,43 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             }
 
             if (target >= 0 && state->gosub_top < AMOS_MAX_GOSUB_DEPTH) {
-                /* Bind arguments to parameter names from the Procedure definition */
+                /* Evaluate arguments in caller's scope BEFORE pushing */
                 amos_node_t *proc_def = state->lines[target].ast;
+                eval_result_t arg_vals[8] = {0};
+                const char *param_names[8] = {0};
+                int bind_count = 0;
                 if (proc_def) {
                     int param_count = proc_def->child_count;
                     int arg_count = node->child_count;
-                    int bind_count = param_count < arg_count ? param_count : arg_count;
+                    bind_count = param_count < arg_count ? param_count : arg_count;
+                    if (bind_count > 8) bind_count = 8;
                     for (int i = 0; i < bind_count; i++) {
-                        const char *param_name = proc_def->children[i]->token.sval;
-                        if (param_name) {
-                            eval_result_t val = eval_node(state, node->children[i]);
-                            switch (val.type) {
-                                case VAR_INTEGER:
-                                    amos_var_set_int(state, param_name, val.ival);
-                                    break;
-                                case VAR_FLOAT:
-                                    amos_var_set_float(state, param_name, val.fval);
-                                    break;
-                                case VAR_STRING:
-                                    amos_var_set_string(state, param_name, val.sval ? val.sval : "");
-                                    break;
-                                default:
-                                    break;
-                            }
-                            free_result(&val);
+                        param_names[i] = proc_def->children[i]->token.sval;
+                        arg_vals[i] = eval_node(state, node->children[i]);
+                    }
+                }
+
+                /* Push procedure scope (local variables) */
+                amos_proc_scope_push(state);
+
+                /* Bind parameters in local scope AFTER pushing */
+                for (int i = 0; i < bind_count; i++) {
+                    if (param_names[i]) {
+                        switch (arg_vals[i].type) {
+                            case VAR_INTEGER:
+                                amos_var_set_int(state, param_names[i], arg_vals[i].ival);
+                                break;
+                            case VAR_FLOAT:
+                                amos_var_set_float(state, param_names[i], arg_vals[i].fval);
+                                break;
+                            case VAR_STRING:
+                                amos_var_set_string(state, param_names[i],
+                                    arg_vals[i].sval ? arg_vals[i].sval : "");
+                                break;
+                            default:
+                                break;
                         }
+                        free_result(&arg_vals[i]);
                     }
                 }
 

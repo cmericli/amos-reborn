@@ -742,6 +742,116 @@ VV_TEST("REQ-INT-040: Procedure skipped when not called") {
     vv_destroy(s);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ *  Procedure Variable Scoping
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-020a: Procedure locals don't leak to caller") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Proc SETLOCAL\n"
+        "End\n"
+        "Procedure SETLOCAL\n"
+        "LOCAL_VAR=999\n"
+        "End Proc\n"
+    );
+    /* LOCAL_VAR should not exist in caller's scope */
+    amos_var_t *v = amos_var_get(s, "LOCAL_VAR");
+    VV_ASSERT(v == NULL, "local variable should not leak to caller");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020b: Shared variables are visible from procedure") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "RESULT=0\n"
+        "Proc MODIFY\n"
+        "End\n"
+        "Procedure MODIFY\n"
+        "Shared RESULT\n"
+        "RESULT=42\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "RESULT", 42);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020c: Parameters are local copies, not references") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=100\n"
+        "Proc HALVE[X]\n"
+        "End\n"
+        "Procedure HALVE[N]\n"
+        "N=N/2\n"
+        "End Proc\n"
+    );
+    /* X should still be 100 — N was a local copy */
+    VV_ASSERT_INT(s, "X", 100);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020d: Nested procedures have independent scopes") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "SV=0\n"
+        "Proc OUTER\n"
+        "End\n"
+        "Procedure OUTER\n"
+        "Shared SV\n"
+        "LCL=10\n"
+        "Proc INNER\n"
+        "SV=SV+LCL\n"
+        "End Proc\n"
+        "Procedure INNER\n"
+        "Shared SV\n"
+        "SV=SV+1\n"
+        "End Proc\n"
+    );
+    /* OUTER: LCL=10, calls INNER which adds 1 to SV. Then OUTER does SV+LCL.
+     * After INNER: SV=1. Then SV=1+10=11. */
+    VV_ASSERT_INT(s, "SV", 11);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020e0: Comma-separated Shared A,B works") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=10\n"
+        "B=20\n"
+        "Proc ADDEM\n"
+        "End\n"
+        "Procedure ADDEM\n"
+        "Shared A,B\n"
+        "A=A+1\n"
+        "B=B+1\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "A", 11);
+    VV_ASSERT_INT(s, "B", 21);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020e: Multiple shared variables on separate lines") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "A=1\n"
+        "B=2\n"
+        "Proc DOSWAP\n"
+        "End\n"
+        "Procedure DOSWAP\n"
+        "Shared A\n"
+        "Shared B\n"
+        "T=A\n"
+        "A=B\n"
+        "B=T\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "A", 2);
+    VV_ASSERT_INT(s, "B", 1);
+    vv_destroy(s);
+}
+
 VV_TEST("REQ-INT-041: Modulo operator") {
     amos_state_t *s = vv_create();
     vv_run(s, "X=17 Mod 5");

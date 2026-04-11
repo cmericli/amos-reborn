@@ -21,7 +21,7 @@
 
 /* ── Limits ──────────────────────────────────────────────────────── */
 
-#define AMOS_MAX_SCREENS     8
+#define AMOS_MAX_SCREENS    12
 #define AMOS_MAX_SPRITES    64
 #define AMOS_MAX_BOBS       64
 #define AMOS_MAX_BANKS      16
@@ -33,7 +33,7 @@
 #define AMOS_MAX_STACK_DEPTH   256
 #define AMOS_MAX_GOSUB_DEPTH   128
 #define AMOS_MAX_FOR_DEPTH     64
-#define AMOS_MAX_PROC_DEPTH    64
+#define AMOS_MAX_PROC_DEPTH    32
 #define AMOS_MAX_AMAL_CHANNELS 16
 
 /* ── Dialect ─────────────────────────────────────────────────────── */
@@ -546,6 +546,16 @@ typedef struct {
     int wait_counter;
 } amal_channel_t;
 
+/* ── Procedure Scope ─────────────────────────────────────────────── */
+
+#define AMOS_MAX_SHARED_VARS 32
+
+typedef struct {
+    int saved_var_count;                        /* watermark: vars below this are caller's */
+    char shared_names[AMOS_MAX_SHARED_VARS][64]; /* names explicitly Shared with caller */
+    int shared_count;
+} proc_scope_t;
+
 /* ── GOSUB Stack Entry ───────────────────────────────────────────── */
 
 typedef struct {
@@ -623,6 +633,10 @@ typedef struct {
     /* Variables */
     amos_var_t variables[AMOS_MAX_VARIABLES];
     int var_count;
+
+    /* Procedure scope stack */
+    proc_scope_t proc_scopes[AMOS_MAX_PROC_DEPTH];
+    int proc_scope_top;         /* 0 = global scope, >0 = inside procedure */
 
     /* Arrays */
     amos_array_t arrays[AMOS_MAX_ARRAYS];
@@ -768,6 +782,9 @@ amos_var_t *amos_var_get(amos_state_t *state, const char *name);
 amos_var_t *amos_var_set_int(amos_state_t *state, const char *name, int32_t val);
 amos_var_t *amos_var_set_float(amos_state_t *state, const char *name, double val);
 amos_var_t *amos_var_set_string(amos_state_t *state, const char *name, const char *val);
+void amos_proc_scope_push(amos_state_t *state);
+void amos_proc_scope_pop(amos_state_t *state);
+void amos_proc_scope_add_shared(amos_state_t *state, const char *name);
 
 /* ── API: Display ────────────────────────────────────────────────── */
 

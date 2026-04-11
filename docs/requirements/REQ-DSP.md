@@ -22,7 +22,7 @@ REQ-DSP-002: Maximum Screen Count — System supports at most 12 screens (EcMax=
   Acceptance: AMOS_MAX_SCREENS >= 12; Screen Open 12,320,256,5 must fail; Screen Open 11,320,256,5 must succeed
   Level: 2 (subsystem)
   Source: Blueprint S3 "Screen Data Structure"
-  Status: PARTIAL — AMOS_MAX_SCREENS is 8, blueprint says 12
+  Status: IMPL — AMOS_MAX_SCREENS is 12
 ```
 
 ```
@@ -178,7 +178,7 @@ REQ-DSP-021: Screen Open Width Multiple of 16 — tx must be a multiple of 16
   Acceptance: Screen Open 0,17,256,5 must fail or clamp to 16; Screen Open 0,320,256,5 succeeds with width=320
   Level: 2 (subsystem)
   Source: Blueprint S3 "Screen Open"
-  Status: TODO — no width alignment validation in amos_screen_open
+  Status: IMPL — executor validates width alignment in Screen Open command
 ```
 
 ```
@@ -186,7 +186,7 @@ REQ-DSP-022: Screen Open Width Range — tx must be in range 16-1008
   Acceptance: Screen Open 0,0,256,5 fails; Screen Open 0,1024,256,5 fails; Screen Open 0,1008,256,5 succeeds
   Level: 2 (subsystem)
   Source: Blueprint S3 "Screen Open"
-  Status: TODO — no range validation in amos_screen_open
+  Status: IMPL — executor validates width range 16-1008 in Screen Open command
 ```
 
 ```
@@ -194,7 +194,7 @@ REQ-DSP-023: Screen Open Height Range — ty must be in range 1-1023
   Acceptance: Screen Open 0,320,0,5 fails; Screen Open 0,320,1024,5 fails; Screen Open 0,320,1023,5 succeeds
   Level: 2 (subsystem)
   Source: Blueprint S3 "Screen Open"
-  Status: TODO — no range validation in amos_screen_open
+  Status: IMPL — executor validates height range 1-1023 in Screen Open command
 ```
 
 ```
@@ -202,7 +202,7 @@ REQ-DSP-024: Color-to-Plane Mapping 2->1 — 2 colors maps to 1 bitplane
   Acceptance: Screen Open 0,320,256,2 sets depth=1
   Level: 1 (unit)
   Source: Blueprint S3 "Screen Open"
-  Status: PARTIAL — depth passed directly, no color-to-plane conversion
+  Status: IMPL — executor converts color count to depth in Screen Open command
 ```
 
 ```
@@ -210,7 +210,7 @@ REQ-DSP-025: Color-to-Plane Mapping 4->2 — 4 colors maps to 2 bitplanes
   Acceptance: Screen Open 0,320,256,4 sets depth=2
   Level: 1 (unit)
   Source: Blueprint S3 "Screen Open"
-  Status: PARTIAL — depth passed directly
+  Status: IMPL — executor converts color count to depth in Screen Open command
 ```
 
 ```
@@ -218,7 +218,7 @@ REQ-DSP-026: Color-to-Plane Mapping 8->3 — 8 colors maps to 3 bitplanes
   Acceptance: Screen Open 0,320,256,8 sets depth=3
   Level: 1 (unit)
   Source: Blueprint S3 "Screen Open"
-  Status: PARTIAL — depth passed directly
+  Status: IMPL — executor converts color count to depth in Screen Open command
 ```
 
 ```
@@ -226,7 +226,7 @@ REQ-DSP-027: Color-to-Plane Mapping 16->4 — 16 colors maps to 4 bitplanes
   Acceptance: Screen Open 0,320,256,16 sets depth=4
   Level: 1 (unit)
   Source: Blueprint S3 "Screen Open"
-  Status: PARTIAL — depth passed directly
+  Status: IMPL — executor converts color count to depth in Screen Open command
 ```
 
 ```
@@ -234,7 +234,7 @@ REQ-DSP-028: Color-to-Plane Mapping 32->5 — 32 colors maps to 5 bitplanes
   Acceptance: Screen Open 0,320,256,32 sets depth=5
   Level: 1 (unit)
   Source: Blueprint S3 "Screen Open"
-  Status: PARTIAL — depth passed directly
+  Status: IMPL — executor converts color count to depth in Screen Open command
 ```
 
 ```
@@ -242,7 +242,7 @@ REQ-DSP-029: Color-to-Plane Mapping 64->6 — 64 colors maps to 6 bitplanes
   Acceptance: Screen Open 0,320,256,64 sets depth=6
   Level: 1 (unit)
   Source: Blueprint S3 "Screen Open"
-  Status: PARTIAL — depth passed directly
+  Status: IMPL — executor converts color count to depth in Screen Open command
 ```
 
 ```

@@ -22,10 +22,86 @@ VV_TEST("REQ-DSP-001: Screen structure size is constant across all slots") {
     vv_destroy(s);
 }
 
-VV_TEST("REQ-DSP-002: Maximum screen count is at least 8") {
-    /* Blueprint says 12, implementation currently 8 — test the current cap */
-    VV_ASSERT(AMOS_MAX_SCREENS >= 8,
-              "AMOS_MAX_SCREENS must be at least 8");
+VV_TEST("REQ-DSP-002: Maximum screen count is 12 (EcMax)") {
+    VV_ASSERT(AMOS_MAX_SCREENS == 12,
+              "AMOS_MAX_SCREENS must be 12 per blueprint");
+}
+
+VV_TEST("REQ-DSP-021: Screen Open width clamps to multiple of 16") {
+    amos_state_t *s = vv_create();
+    /* Width 17 should round up to 32 */
+    vv_run(s, "Screen Open 1,17,100,32");
+    VV_ASSERT(s->screens[1].width == 32,
+              "width 17 should clamp to 32 (next multiple of 16)");
+    /* Width 320 should stay 320 */
+    vv_run(s, "Screen Open 2,320,100,32");
+    VV_ASSERT(s->screens[2].width == 320,
+              "width 320 should stay 320");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-022: Screen Open width range 16-1008") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,0,100,32");
+    VV_ASSERT(s->screens[1].width == 16,
+              "width 0 should clamp to 16");
+    vv_run(s, "Screen Open 2,2000,100,32");
+    VV_ASSERT(s->screens[2].width == 1008,
+              "width 2000 should clamp to 1008");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-023: Screen Open height range 1-1023") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,0,32");
+    VV_ASSERT(s->screens[1].height == 1,
+              "height 0 should clamp to 1");
+    vv_run(s, "Screen Open 2,320,2000,32");
+    VV_ASSERT(s->screens[2].height == 1023,
+              "height 2000 should clamp to 1023");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-024: Screen Open 2 colors maps to depth 1") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,2");
+    VV_ASSERT(s->screens[1].depth == 1, "2 colors → depth 1");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-025: Screen Open 4 colors maps to depth 2") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,4");
+    VV_ASSERT(s->screens[1].depth == 2, "4 colors → depth 2");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-026: Screen Open 8 colors maps to depth 3") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,8");
+    VV_ASSERT(s->screens[1].depth == 3, "8 colors → depth 3");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-027: Screen Open 16 colors maps to depth 4") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,16");
+    VV_ASSERT(s->screens[1].depth == 4, "16 colors → depth 4");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-028: Screen Open 32 colors maps to depth 5") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,32");
+    VV_ASSERT(s->screens[1].depth == 5, "32 colors → depth 5");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-029: Screen Open 64 colors maps to depth 6") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,64");
+    VV_ASSERT(s->screens[1].depth == 6, "64 colors → depth 6");
+    vv_destroy(s);
 }
 
 VV_TEST("REQ-DSP-003: Drawing targets pixels buffer (Logic equivalent)") {
