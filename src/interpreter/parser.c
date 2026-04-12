@@ -134,8 +134,24 @@ static amos_node_t *parse_if(amos_token_t *tokens, int *pos, int count)
     amos_node_t *cond = amos_parse_expression(tokens, pos, count);
     add_child(node, cond);
 
-    /* THEN (optional in some AMOS variants) */
-    match(tokens, pos, count, TOK_THEN);
+    /* THEN (optional in some AMOS variants).
+     * If not at current position, skip unknown tokens to find it.
+     * This handles cases where detokenizer produced placeholder tokens
+     * between the condition and Then keyword. */
+    if (!match(tokens, pos, count, TOK_THEN)) {
+        /* Scan forward for Then within this line */
+        int save = *pos;
+        while (*pos < count && tokens[*pos].type != TOK_THEN &&
+               tokens[*pos].type != TOK_EOF &&
+               tokens[*pos].type != TOK_NEWLINE) {
+            (*pos)++;
+        }
+        if (*pos < count && tokens[*pos].type == TOK_THEN) {
+            (*pos)++;  /* consume Then */
+        } else {
+            *pos = save;  /* restore — no Then found (multi-line If) */
+        }
+    }
 
     /* Then-branch: parse statements until Else/End If/newline */
     amos_node_t *then_body = alloc_node(NODE_LINE, node->token.line);

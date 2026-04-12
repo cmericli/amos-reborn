@@ -848,13 +848,31 @@ static eval_result_t eval_node(amos_state_t *state, amos_node_t *node)
 /* ── Block Scanning Helpers ───────────────────────────────────────── */
 
 /* Scan forward to find matching Else or End If, respecting nesting */
+/* Check if a line's text could contain If, Else, or End If keywords.
+ * This is a fast pre-filter to avoid expensive tokenize+parse on every line. */
+static bool text_could_be_if_else_endif(const char *text)
+{
+    /* Case-insensitive search for "If", "Else", or "End" in the text */
+    for (const char *p = text; *p; p++) {
+        char c = *p | 0x20; /* tolower for ASCII */
+        if (c == 'i' && (p[1] | 0x20) == 'f' &&
+            (p[2] == ' ' || p[2] == '\t' || p[2] == '\0' || p[2] == ':'))
+            return true;
+        if (c == 'e' && (p[1] | 0x20) == 'l' && (p[2] | 0x20) == 's' && (p[3] | 0x20) == 'e')
+            return true;
+        if (c == 'e' && (p[1] | 0x20) == 'n' && (p[2] | 0x20) == 'd')
+            return true;
+    }
+    return false;
+}
+
 static int scan_to_else_or_endif(amos_state_t *state, int from_line)
 {
     int depth = 1;
     for (int i = from_line + 1; i < state->line_count; i++) {
-        /* Lazy-parse the line to check its type */
         amos_program_line_t *pl = &state->lines[i];
         if (!pl->ast && pl->text) {
+            if (!text_could_be_if_else_endif(pl->text)) continue;
             amos_token_list_t *tokens = amos_tokenize(pl->text);
             if (tokens && tokens->count > 0) {
                 int pos = 0;
@@ -883,6 +901,7 @@ static int scan_to_endif(amos_state_t *state, int from_line)
     for (int i = from_line + 1; i < state->line_count; i++) {
         amos_program_line_t *pl = &state->lines[i];
         if (!pl->ast && pl->text) {
+            if (!text_could_be_if_else_endif(pl->text)) continue;
             amos_token_list_t *tokens = amos_tokenize(pl->text);
             if (tokens && tokens->count > 0) {
                 int pos = 0;
@@ -908,6 +927,12 @@ static int scan_to_wend(amos_state_t *state, int from_line)
     for (int i = from_line + 1; i < state->line_count; i++) {
         amos_program_line_t *pl = &state->lines[i];
         if (!pl->ast && pl->text) {
+            const char *txt = pl->text;
+            while (*txt == ' ' || *txt == '\t') txt++;
+            if (strncasecmp(txt, "While ", 6) != 0 &&
+                strncasecmp(txt, "Wend", 4) != 0) {
+                continue;
+            }
             amos_token_list_t *tokens = amos_tokenize(pl->text);
             if (tokens && tokens->count > 0) {
                 int pos = 0;
@@ -954,22 +979,25 @@ static int find_line_index(amos_state_t *state, int line_number)
     return -1;
 }
 
-/* Find label by name */
+/* Find label by name.
+ * Optimization: only lazy-parse lines that contain ':' (label definition marker). */
 static int find_label(amos_state_t *state, const char *name)
 {
     for (int i = 0; i < state->line_count; i++) {
-        /* Lazy-parse if AST not yet cached (labels after current line) */
-        if (!state->lines[i].ast && state->lines[i].text) {
+        amos_node_t *ln = state->lines[i].ast;
+        if (!ln && state->lines[i].text) {
+            /* Quick text check: label defs must contain ':' */
+            if (!strchr(state->lines[i].text, ':')) continue;
             amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
             if (tl && tl->count > 0) {
                 int p = 0;
                 state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
             }
             amos_token_list_free(tl);
+            ln = state->lines[i].ast;
         }
-        if (state->lines[i].ast && state->lines[i].ast->type == NODE_LABEL &&
-            state->lines[i].ast->token.sval &&
-            strcasecmp(state->lines[i].ast->token.sval, name) == 0) {
+        if (ln && ln->type == NODE_LABEL && ln->token.sval &&
+            strcasecmp(ln->token.sval, name) == 0) {
             return i;
         }
     }
@@ -992,18 +1020,27 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             break;
 
         case NODE_PROCEDURE: {
-            /* If we flow into a Procedure definition (not called), skip to End Proc */
+            /* If we flow into a Procedure definition (not called), skip to End Proc.
+             * Optimization: only lazy-parse lines that could be Procedure or End Proc. */
             int depth = 1;
             for (int i = state->current_line + 1; i < state->line_count; i++) {
-                if (!state->lines[i].ast && state->lines[i].text) {
+                amos_node_t *ln = state->lines[i].ast;
+                if (!ln && state->lines[i].text) {
+                    const char *txt = state->lines[i].text;
+                    while (*txt == ' ' || *txt == '\t') txt++;
+                    /* Only parse lines that could be Procedure or End Proc */
+                    if (strncasecmp(txt, "Procedure ", 10) != 0 &&
+                        strncasecmp(txt, "End Proc", 8) != 0) {
+                        continue;
+                    }
                     amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
                     if (tl && tl->count > 0) {
                         int p = 0;
                         state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
                     }
                     amos_token_list_free(tl);
+                    ln = state->lines[i].ast;
                 }
-                amos_node_t *ln = state->lines[i].ast;
                 if (!ln) continue;
                 if (ln->type == NODE_PROCEDURE) depth++;
                 if (ln->type == NODE_COMMAND && ln->token.type == TOK_END_PROC) {
@@ -1279,16 +1316,25 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     }
                     /* Scan forward for matching Loop/Wend/Until/Next */
                     for (int i = state->current_line + 1; i < state->line_count; i++) {
-                        /* Lazy-parse to populate ast */
-                        if (!state->lines[i].ast && state->lines[i].text) {
+                        amos_node_t *ln = state->lines[i].ast;
+                        if (!ln && state->lines[i].text) {
+                            const char *txt = state->lines[i].text;
+                            while (*txt == ' ' || *txt == '\t') txt++;
+                            if (strncasecmp(txt, "Loop", 4) != 0 &&
+                                strncasecmp(txt, "Wend", 4) != 0 &&
+                                strncasecmp(txt, "Next ", 5) != 0 &&
+                                strncasecmp(txt, "Next\0", 5) != 0 &&
+                                strncasecmp(txt, "Until ", 6) != 0) {
+                                continue;
+                            }
                             amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
                             if (tl && tl->count > 0) {
                                 int p = 0;
                                 state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
                             }
                             amos_token_list_free(tl);
+                            ln = state->lines[i].ast;
                         }
-                        amos_node_t *ln = state->lines[i].ast;
                         if (!ln) continue;
                         if ((ln->type == NODE_COMMAND &&
                              (ln->token.type == TOK_LOOP || ln->token.type == TOK_WEND ||
@@ -1313,15 +1359,25 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                                 state->gosub_top--;
                             }
                             for (int i = state->current_line + 1; i < state->line_count; i++) {
-                                if (!state->lines[i].ast && state->lines[i].text) {
+                                amos_node_t *ln = state->lines[i].ast;
+                                if (!ln && state->lines[i].text) {
+                                    const char *txt = state->lines[i].text;
+                                    while (*txt == ' ' || *txt == '\t') txt++;
+                                    if (strncasecmp(txt, "Loop", 4) != 0 &&
+                                        strncasecmp(txt, "Wend", 4) != 0 &&
+                                        strncasecmp(txt, "Next ", 5) != 0 &&
+                                        strncasecmp(txt, "Next\0", 5) != 0 &&
+                                        strncasecmp(txt, "Until ", 6) != 0) {
+                                        continue;
+                                    }
                                     amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
                                     if (tl && tl->count > 0) {
                                         int p = 0;
                                         state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
                                     }
                                     amos_token_list_free(tl);
+                                    ln = state->lines[i].ast;
                                 }
-                                amos_node_t *ln = state->lines[i].ast;
                                 if (!ln) continue;
                                 if ((ln->type == NODE_COMMAND &&
                                      (ln->token.type == TOK_LOOP || ln->token.type == TOK_WEND ||
@@ -2557,6 +2613,12 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     for (int i = state->current_line + 1; i < state->line_count; i++) {
                         amos_program_line_t *pl = &state->lines[i];
                         if (!pl->ast && pl->text) {
+                            const char *txt = pl->text;
+                            while (*txt == ' ' || *txt == '\t') txt++;
+                            if (strncasecmp(txt, "Select ", 7) != 0 &&
+                                strncasecmp(txt, "End Select", 10) != 0) {
+                                continue;
+                            }
                             amos_token_list_t *toks = amos_tokenize(pl->text);
                             if (toks && toks->count > 0) {
                                 int p = 0;
@@ -2876,19 +2938,29 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             const char *proc_name = node->token.sval;
             if (!proc_name) break;
 
-            /* Scan program for matching Procedure name */
+            /* Scan program for matching Procedure name.
+             * Optimization: only lazy-parse lines that start with "Procedure "
+             * to avoid tokenizing+parsing every line in large programs. */
             int target = -1;
             for (int i = 0; i < state->line_count; i++) {
-                /* Lazy-parse if needed */
-                if (!state->lines[i].ast && state->lines[i].text) {
+                amos_node_t *ln = state->lines[i].ast;
+                if (!ln && state->lines[i].text) {
+                    /* Quick text-level check: skip lines that can't be Procedure defs */
+                    const char *txt = state->lines[i].text;
+                    while (*txt == ' ' || *txt == '\t') txt++;
+                    if (strncasecmp(txt, "Procedure ", 10) != 0 &&
+                        strncasecmp(txt, "Procedure\t", 10) != 0) {
+                        continue;
+                    }
+                    /* This line starts with "Procedure" — parse it */
                     amos_token_list_t *tl = amos_tokenize(state->lines[i].text);
                     if (tl && tl->count > 0) {
                         int p = 0;
                         state->lines[i].ast = amos_parse_line(tl->tokens, &p, tl->count);
                     }
                     amos_token_list_free(tl);
+                    ln = state->lines[i].ast;
                 }
-                amos_node_t *ln = state->lines[i].ast;
                 if (ln && ln->type == NODE_PROCEDURE && ln->token.sval &&
                     strcasecmp(ln->token.sval, proc_name) == 0) {
                     target = i;
@@ -3045,6 +3117,14 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
             for (int i = state->current_line + 1; i < state->line_count; i++) {
                 amos_program_line_t *pl = &state->lines[i];
                 if (!pl->ast && pl->text) {
+                    const char *txt = pl->text;
+                    while (*txt == ' ' || *txt == '\t') txt++;
+                    if (strncasecmp(txt, "Case ", 5) != 0 &&
+                        strncasecmp(txt, "Default", 7) != 0 &&
+                        strncasecmp(txt, "End Select", 10) != 0 &&
+                        strncasecmp(txt, "Select ", 7) != 0) {
+                        continue;
+                    }
                     amos_token_list_t *toks = amos_tokenize(pl->text);
                     if (toks && toks->count > 0) {
                         int p = 0;
@@ -3199,6 +3279,7 @@ void amos_execute_line(amos_state_t *state, int line_index)
             continue;
         }
 
+        int pos_before = pos;
         amos_node_t *node = amos_parse_line(tokens->tokens, &pos, tokens->count);
         if (node) {
             /* Also update the cached AST for the first statement (for block
@@ -3211,6 +3292,9 @@ void amos_execute_line(amos_state_t *state, int line_index)
                 amos_execute_node(state, node);
                 amos_node_free(node);
             }
+        } else if (pos == pos_before) {
+            /* Parse failed without advancing — skip token to avoid infinite loop */
+            pos++;
         }
 
         /* If execution jumped elsewhere (Goto/Gosub/For/etc.), stop
