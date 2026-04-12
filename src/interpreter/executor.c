@@ -2936,6 +2936,18 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     const char *var_name = node->children[i]->token.sval;
                     /* Find next DATA value */
                     while (state->data_line < state->line_count) {
+                        /* Lazy-parse if needed */
+                        if (!state->lines[state->data_line].ast &&
+                            state->lines[state->data_line].text) {
+                            amos_token_list_t *tl = amos_tokenize(
+                                state->lines[state->data_line].text);
+                            if (tl && tl->count > 0) {
+                                int p = 0;
+                                state->lines[state->data_line].ast =
+                                    amos_parse_line(tl->tokens, &p, tl->count);
+                            }
+                            amos_token_list_free(tl);
+                        }
                         amos_node_t *dl = state->lines[state->data_line].ast;
                         if (dl && dl->type == NODE_DATA &&
                             state->data_pos < dl->child_count) {

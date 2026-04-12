@@ -994,3 +994,216 @@ VV_TEST("REQ-STR-008: Instr function finds substring") {
     VV_ASSERT_INT(s, "B", 0);
     vv_destroy(s);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Do/Loop/Exit control flow
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-050: Do/Loop with Exit") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "Do\n"
+        "X=X+1\n"
+        "If X=5 Then Exit\n"
+        "Loop\n"
+    );
+    VV_ASSERT_INT(s, "X", 5);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-051: Do/Loop infinite without Exit") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "Do\n"
+        "X=X+1\n"
+        "If X>=10 Then Exit\n"
+        "Loop\n"
+    );
+    VV_ASSERT_INT(s, "X", 10);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-052: Exit If conditional exit") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "Do\n"
+        "X=X+1\n"
+        "Exit If X=7\n"
+        "Loop\n"
+    );
+    VV_ASSERT_INT(s, "X", 7);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-053: Nested Do/Loop") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "TOTAL=0\n"
+        "I=0\n"
+        "Do\n"
+        "I=I+1\n"
+        "J=0\n"
+        "Do\n"
+        "J=J+1\n"
+        "TOTAL=TOTAL+1\n"
+        "If J=3 Then Exit\n"
+        "Loop\n"
+        "If I=4 Then Exit\n"
+        "Loop\n"
+    );
+    /* 4 outer x 3 inner = 12 */
+    VV_ASSERT_INT(s, "TOTAL", 12);
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Array operations (Dim, read, write)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-060: Dim creates integer array") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Dim A(5)\n"
+        "A(0)=10\n"
+        "A(3)=30\n"
+        "X=A(0)+A(3)\n"
+    );
+    VV_ASSERT_INT(s, "X", 40);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-061: Dim creates string array") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Dim N$(3)\n"
+        "N$(0)=\"Hello\"\n"
+        "N$(1)=\"World\"\n"
+        "R$=N$(0)+\" \"+N$(1)\n"
+    );
+    VV_ASSERT_STR(s, "R$", "Hello World");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-062: Two-dimensional array") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Dim M(3,3)\n"
+        "M(1,2)=42\n"
+        "X=M(1,2)\n"
+    );
+    VV_ASSERT_INT(s, "X", 42);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-063: Array elements default to zero") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Dim A(10)\n"
+        "X=A(5)\n"
+    );
+    VV_ASSERT_INT(s, "X", 0);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-064: For loop fills array") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Dim A(5)\n"
+        "For I=0 To 5\n"
+        "A(I)=I*I\n"
+        "Next I\n"
+        "X=A(0)+A(1)+A(2)+A(3)+A(4)+A(5)\n"
+    );
+    /* 0+1+4+9+16+25 = 55 */
+    VV_ASSERT_INT(s, "X", 55);
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Read/Data
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-070: Read reads Data values") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Read A\n"
+        "Read B\n"
+        "Read C\n"
+        "Data 10,20,30\n"
+    );
+    VV_ASSERT_INT(s, "A", 10);
+    VV_ASSERT_INT(s, "B", 20);
+    VV_ASSERT_INT(s, "C", 30);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-071: Read string Data") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Read A$\n"
+        "Read B$\n"
+        "Data \"Hello\",\"World\"\n"
+    );
+    VV_ASSERT_STR(s, "A$", "Hello");
+    VV_ASSERT_STR(s, "B$", "World");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-072: Restore resets Data pointer") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Read A\n"
+        "Read B\n"
+        "Restore\n"
+        "Read C\n"
+        "Data 100,200\n"
+    );
+    VV_ASSERT_INT(s, "A", 100);
+    VV_ASSERT_INT(s, "B", 200);
+    VV_ASSERT_INT(s, "C", 100);  /* re-read after Restore */
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-073: Data across multiple lines") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "Read A\n"
+        "Read B\n"
+        "Read C\n"
+        "Data 1\n"
+        "Data 2\n"
+        "Data 3\n"
+    );
+    VV_ASSERT_INT(s, "A", 1);
+    VV_ASSERT_INT(s, "B", 2);
+    VV_ASSERT_INT(s, "C", 3);
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Additional string functions
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-STR-009: Space$ function") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "A$=Space$(5)");
+    VV_ASSERT_STR(s, "A$", "     ");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-010: String$ function") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "A$=String$(\"Ab\",3)");
+    VV_ASSERT_STR(s, "A$", "AbAbAb");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-STR-011: Flip$ function reverses string") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "A$=Flip$(\"Hello\")");
+    VV_ASSERT_STR(s, "A$", "olleH");
+    vv_destroy(s);
+}
