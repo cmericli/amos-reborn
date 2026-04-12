@@ -165,6 +165,8 @@ static bool is_noarg_builtin(const char *name)
     if (strcasecmp(name, "Erl") == 0) return true;
     if (strcasecmp(name, "Free") == 0) return true;
     if (strcasecmp(name, "Pi#") == 0) return true;
+    if (strcasecmp(name, "Hires") == 0) return true;
+    if (strcasecmp(name, "Lowres") == 0) return true;
     return false;
 }
 

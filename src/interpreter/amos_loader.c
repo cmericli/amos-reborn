@@ -111,24 +111,31 @@ static const struct {
     {0x00C0, "Follow Off", TF_NONE},
     {0x00D0, "Follow", TF_NONE},
     {0x00DC, "Resume Next", TF_NONE},
+    {0x00E0, "Resume Next", TF_NONE},          /* Pro */
     {0x00EE, "Inkey$", TF_NONE},
     {0x00F2, "Inkey$", TF_NONE},      /* Pro */
     {0x00FA, "Repeat$", TF_NONE},
     {0x010A, "Zone$", TF_NONE},
+    {0x010E, "Zone$", TF_NONE},          /* Pro */
     {0x0118, "Border$", TF_NONE},
     {0x0128, "Double Buffer", TF_NONE},
     {0x013C, "Start", TF_NONE},
     {0x0148, "Length", TF_NONE},
+    {0x014C, "Length", TF_NONE},          /* Pro */
     {0x0156, "Doke ", TF_NONE},
     {0x0164, "On Menu Del", TF_NONE},
     {0x0176, "On Menu On", TF_NONE},
     {0x0186, "On Menu Off", TF_NONE},
     {0x0198, "Every On", TF_NONE},
+    {0x019C, "Every On", TF_NONE},            /* Pro */
     {0x01A6, "Every Off", TF_NONE},
     {0x01B6, "Logbase", TF_NONE},
+    {0x01BA, "Logbase", TF_NONE},          /* Pro */
     {0x01C4, "Logic", TF_NONE},
     {0x01D8, "Asc", TF_NONE},
+    {0x01DC, "Asc", TF_NONE},          /* Pro */
     {0x01E2, "As ", TF_NONE},
+    {0x01E6, "As ", TF_NONE},          /* Pro */
     {0x01EA, "Call ", TF_NONE},
     {0x01F4, "Execall", TF_NONE},
     {0x0202, "Gfxcall", TF_NONE},
@@ -176,13 +183,16 @@ static const struct {
     {0x0304, "On Menu ", TF_BRANCH},
     {0x0312, "On ", TF_BRANCH},
     {0x031A, "Resume Label ", TF_NONE},
+    {0x031E, "Resume Label ", TF_NONE},          /* Pro */
     {0x032C, "Resume", TF_NONE},
     {0x0338, "Pop Proc", TF_NONE},
     {0x0346, "Every ", TF_BRANCH},
+    {0x034A, "Every ", TF_NONE},          /* Pro */
     {0x0352, "Step ", TF_NONE},
     {0x035C, "Return", TF_NONE},
     {0x035E, "Return", TF_NONE},       /* Pro variant */
     {0x0368, "Pop", TF_NONE},
+    {0x036C, "Pop", TF_NONE},          /* Pro */
     {0x0372, "Procedure ", TF_BRANCH},
     {0x0376, "Procedure ", TF_BRANCH},   /* Pro */
     {0x0382, "Proc ", TF_BRANCH},
@@ -194,6 +204,7 @@ static const struct {
     {0x03B2, "End", TF_NONE},
     {0x03B6, "End", TF_NONE},          /* Pro */
     {0x03BC, "Stop", TF_NONE},
+    {0x03C0, "Stop", TF_NONE},          /* Pro */
     {0x03C6, "Param#", TF_NONE},
     {0x03D2, "Param$", TF_NONE},
     {0x03D6, "Param$", TF_NONE},       /* Pro */
@@ -210,18 +221,24 @@ static const struct {
     {0x0422, "Break Off", TF_NONE},
     {0x0426, "Break Off", TF_NONE},   /* Pro */
     {0x0432, "Break On", TF_NONE},
+    {0x0436, "Break On", TF_NONE},          /* Pro */
     {0x0440, "Inc ", TF_NONE},
+    {0x0444, "Inc ", TF_NONE},          /* Pro Inc */
     {0x044A, "Dec ", TF_NONE},
+    {0x044E, "Dec ", TF_NONE},          /* Pro Dec */
     {0x0454, "Add ", TF_NONE},
     {0x0466, "Print #", TF_NONE},
     {0x0472, "Print ", TF_NONE},
     {0x047E, "Lprint ", TF_NONE},
+    {0x0482, "Lprint ", TF_NONE},          /* Pro */
     {0x048A, "Input$", TF_NONE},
     {0x04A2, "Using ", TF_NONE},
     {0x04AE, "Input #", TF_NONE},
+    {0x04B2, "Input #", TF_NONE},          /* Pro */
     {0x04BA, "Line Input #", TF_NONE},
     {0x04BE, "Line Input #", TF_NONE},  /* Pro */
     {0x04CC, "Input ", TF_NONE},
+    {0x04D0, "Input ", TF_NONE},        /* Pro Input */
     {0x04D8, "Line Input ", TF_NONE},
     {0x04E8, "Run ", TF_NONE},
     {0x04F6, "Run ", TF_NONE},          /* Pro variant (confirmed in Font8x8) */
@@ -230,23 +247,30 @@ static const struct {
     {0x0524, "Left$", TF_NONE},
     {0x0528, "Left$", TF_NONE},         /* Pro */
     {0x0532, "Right$", TF_NONE},
+    {0x0536, "Right$", TF_NONE},          /* Pro */
     {0x0542, "Flip$", TF_NONE},
+    {0x0546, "Flip$", TF_NONE},          /* Pro */
     {0x054E, "Chr$", TF_NONE},
     {0x0552, "Chr$", TF_NONE},          /* Pro */
     {0x055A, "Space$", TF_NONE},
+    {0x055E, "Space$", TF_NONE},          /* Pro */
     {0x0568, "String$", TF_NONE},
+    {0x056C, "String$", TF_NONE},          /* Pro */
     {0x0578, "Upper$", TF_NONE},
     {0x057C, "Upper$", TF_NONE},        /* Pro */
     {0x0586, "Lower$", TF_NONE},
+    {0x058A, "Lower$", TF_NONE},          /* Pro */
     {0x0594, "Str$", TF_NONE},
     {0x05A0, "Val", TF_NONE},
     {0x05AA, "Bin$", TF_NONE},
+    {0x05AE, "Bin$", TF_NONE},          /* Pro */
     {0x05C0, "Hex$", TF_NONE},
     {0x05D6, "Len", TF_NONE},
     {0x05E0, "Instr", TF_NONE},
     {0x05E4, "Instr", TF_NONE},         /* Pro */
     {0x05FC, "Tab$", TF_NONE},
     {0x0606, "Free", TF_NONE},
+    {0x060A, "Free", TF_NONE},          /* Pro */
     {0x0610, "Varptr", TF_NONE},
     {0x0614, "Varptr", TF_NONE},        /* Pro */
     {0x061C, "Remember X", TF_NONE},
@@ -257,21 +281,29 @@ static const struct {
     {0x064E, "'", TF_NONE},             /* 1.3 apostrophe comment */
     {0x0652, "'", TF_NONE},             /* Pro apostrophe comment */
     {0x0654, "Sort ", TF_NONE},
+    {0x0658, "Sort ", TF_NONE},          /* Pro */
     {0x065E, "Match", TF_NONE},
+    {0x0662, "Match", TF_NONE},          /* Pro */
     {0x066C, "Edit", TF_NONE},
     {0x0676, "Direct", TF_NONE},
+    {0x067A, "Direct", TF_NONE},          /* Pro Direct */
     {0x0682, "Rnd", TF_NONE},
     {0x068C, "Randomize ", TF_NONE},
     {0x069C, "Sgn", TF_NONE},
+    {0x06A0, "Sgn", TF_NONE},          /* Pro */
     {0x06A6, "Abs", TF_NONE},
+    {0x06AA, "Abs", TF_NONE},          /* Pro */
     {0x06B0, "Int", TF_NONE},
+    {0x06B4, "Int", TF_NONE},          /* Pro */
     {0x06BA, "Radian", TF_NONE},
     {0x06C6, "Degree", TF_NONE},
+    {0x06CA, "Degree", TF_NONE},          /* Pro */
     {0x06D2, "Pi#", TF_NONE},
     {0x06DC, "Fix ", TF_NONE},
     {0x06E6, "Min", TF_NONE},
     {0x06F2, "Max", TF_NONE},
     {0x06FE, "Sin", TF_NONE},
+    {0x0702, "Sin", TF_NONE},          /* Pro */
     {0x0708, "Cos", TF_NONE},
     {0x0712, "Tan", TF_NONE},
     {0x071C, "Asin", TF_NONE},
@@ -281,9 +313,13 @@ static const struct {
     {0x074C, "Hcos", TF_NONE},
     {0x0758, "Htan", TF_NONE},
     {0x0764, "Sqr", TF_NONE},
+    {0x0768, "Sqr", TF_NONE},          /* Pro */
     {0x076E, "Log", TF_NONE},
+    {0x0772, "Log", TF_NONE},          /* Pro */
     {0x0778, "Ln", TF_NONE},
+    {0x077C, "Ln", TF_NONE},          /* Pro */
     {0x0782, "Exp", TF_NONE},
+    {0x0786, "Exp", TF_NONE},          /* Pro */
 
     /* ── Menus ──────────────────────────────────────────────────── */
     {0x078C, "Menu To Bank ", TF_NONE},
@@ -324,48 +360,63 @@ static const struct {
     {0x0A14, "Screen Display ", TF_NONE},
     {0x0A18, "Screen Display ", TF_NONE}, /* Pro */
     {0x0A32, "Screen Offset ", TF_NONE},
+    {0x0A36, "Screen Offset ", TF_NONE},          /* Pro */
     {0x0A4A, "Screen Size", TF_NONE},
     {0x0A5A, "Screen Colour", TF_NONE},
     {0x0A6E, "Screen To Front", TF_NONE},
     {0x0A8C, "Screen To Back", TF_NONE},
     {0x0AAA, "Screen Hide", TF_NONE},
+    {0x0AAE, "Screen Hide", TF_NONE},          /* Pro */
     {0x0AC4, "Screen Show", TF_NONE},
+    {0x0AC8, "Screen Show", TF_NONE},          /* Pro */
     {0x0ADE, "Screen Swap", TF_NONE},
     {0x0AF8, "Save Iff ", TF_NONE},
     {0x0B12, "View", TF_NONE},
+    {0x0B16, "View", TF_NONE},          /* Pro */
     {0x0B1C, "Auto View Off", TF_NONE},
+    {0x0B20, "Auto View Off", TF_NONE},          /* Pro */
     {0x0B30, "Auto View On", TF_NONE},
     {0x0B42, "Screen Base", TF_NONE},
+    {0x0B46, "Screen Base", TF_NONE},          /* Pro */
     {0x0B54, "Screen Width", TF_NONE},
     {0x0B70, "Screen Height", TF_NONE},
     {0x0B8C, "Get Palette ", TF_NONE},
+    {0x0B90, "Get Palette ", TF_NONE},          /* Pro */
     {0x0BAA, "Cls", TF_NONE},
     {0x0BB8, "Cls ", TF_NONE},             /* Pro variant with arg */
+    {0x0BC0, "Cls ", TF_NONE},          /* Pro */
     {0x0BCC, "Def Scroll ", TF_NONE},
     {0x0BEA, "X Hard", TF_NONE},
     {0x0C02, "Y Hard", TF_NONE},
     {0x0C1A, "X Screen", TF_NONE},
     {0x0C34, "Y Screen", TF_NONE},
+    {0x0C38, "Y Screen", TF_NONE},          /* Pro */
     {0x0C4E, "X Text", TF_NONE},
     {0x0C5C, "Y Text", TF_NONE},
+    {0x0C60, "Y Text", TF_NONE},          /* Pro */
     {0x0C6A, "Screen ", TF_NONE},
     {0x0C80, "Hires", TF_NONE},
     {0x0C8C, "Lowres", TF_NONE},
     {0x0C98, "Dual Playfield ", TF_NONE},
+    {0x0C9C, "Dual Playfield ", TF_NONE},          /* Pro */
     {0x0CB0, "Dual Priority ", TF_NONE},
     {0x0CC6, "Wait Vbl", TF_NONE},
     {0x0CCA, "Wait Vbl", TF_NONE},        /* Pro */
     {0x0CD4, "Default Palette", TF_NONE},
     {0x0CEA, "Default", TF_NONE},
+    {0x0CEE, "Default", TF_NONE},          /* Pro */
     {0x0CF8, "Palette ", TF_NONE},
     {0x0D06, "Colour Back ", TF_NONE},
+    {0x0D0A, "Colour Back ", TF_NONE},          /* Pro */
     {0x0D18, "Colour ", TF_NONE},
     {0x0D30, "Flash Off", TF_NONE},
     {0x0D34, "Flash Off", TF_NONE},       /* Pro */
     {0x0D40, "Flash ", TF_NONE},
+    {0x0D44, "Flash ", TF_NONE},          /* Pro */
     {0x0D4E, "Shift Off", TF_NONE},
     {0x0D5E, "Shift Up ", TF_NONE},
     {0x0D74, "Shift Down ", TF_NONE},
+    {0x0D78, "Shift Down ", TF_NONE},          /* Pro */
     {0x0D8C, "Set Rainbow ", TF_NONE},
     {0x0DBE, "Rainbow Del", TF_NONE},
     {0x0DD8, "Rainbow ", TF_NONE},
@@ -377,22 +428,31 @@ static const struct {
     {0x0E38, "Plot ", TF_NONE},
     {0x0E52, "Point", TF_NONE},
     {0x0E60, "Draw To ", TF_NONE},
+    {0x0E64, "Draw To ", TF_NONE},          /* Pro */
     {0x0E70, "Draw ", TF_NONE},
     {0x0E82, "Ellipse ", TF_NONE},
     {0x0E96, "Circle ", TF_NONE},
     {0x0EA8, "Polyline ", TF_NONE},
+    {0x0EAC, "Polyline ", TF_NONE},          /* Pro */
     {0x0EB6, "Polygon ", TF_NONE},
+    {0x0EBA, "Polygon ", TF_NONE},          /* Pro */
     {0x0EC4, "Bar ", TF_NONE},
     {0x0ED4, "Box ", TF_NONE},
     {0x0EE4, "Paint ", TF_NONE},
+    {0x0EE8, "Paint ", TF_NONE},             /* Pro */
     {0x0F00, "Gr Locate ", TF_NONE},
+    {0x0F04, "Gr Locate ", TF_NONE},          /* Pro */
     {0x0F12, "Text Length", TF_NONE},
+    {0x0F16, "Text Length", TF_NONE},          /* Pro */
     {0x0F24, "Text Styles", TF_NONE},
     {0x0F36, "Text Base", TF_NONE},
+    {0x0F3A, "Text Base", TF_NONE},          /* Pro */
     {0x0F46, "Text ", TF_NONE},
     {0x0F56, "Set Text ", TF_NONE},
+    {0x0F5A, "Set Text ", TF_NONE},          /* Pro */
     {0x0F66, "Set Paint ", TF_NONE},
     {0x0F76, "Get Fonts", TF_NONE},
+    {0x0F7A, "Get Fonts", TF_NONE},          /* Pro */
     {0x0F86, "Get Disc Fonts", TF_NONE},
     {0x0F9A, "Get Rom Fonts", TF_NONE},
     {0x0FAE, "Set Font ", TF_NONE},
@@ -402,31 +462,39 @@ static const struct {
     {0x0FFE, "Set Slider ", TF_NONE},
     {0x101E, "Set Pattern ", TF_NONE},
     {0x1030, "Set Line ", TF_NONE},
+    {0x1034, "Set Line ", TF_NONE},          /* Pro */
     {0x1040, "Ink ", TF_NONE},
     {0x1062, "Gr Writing ", TF_NONE},
+    {0x1066, "Gr Writing ", TF_NONE},          /* Pro */
     {0x1074, "Clip", TF_NONE},
     {0x108E, "Set Tempras", TF_NONE},
     {0x10B2, "Appear ", TF_NONE},
     {0x10D2, "Zoom ", TF_NONE},
+    {0x10D6, "Zoom ", TF_NONE},          /* Pro */
     {0x10F0, "Get Cblock ", TF_NONE},
     {0x110A, "Put Cblock ", TF_NONE},
     {0x1128, "Del Cblock", TF_NONE},
     {0x1142, "Get Block ", TF_NONE},
+    {0x1146, "Get Block ", TF_NONE},          /* Pro */
     {0x116E, "Put Block ", TF_NONE},
     {0x11AA, "Del Block", TF_NONE},
     {0x11C2, "Key Speed ", TF_NONE},
     {0x11D4, "Key State", TF_NONE},
     {0x11E4, "Key Shift", TF_NONE},
     {0x11F4, "Joy", TF_NONE},
+    {0x11F8, "Joy", TF_NONE},          /* Pro */
     {0x11FE, "Jup", TF_NONE},
     {0x1208, "Jdown", TF_NONE},
     {0x1214, "Jleft", TF_NONE},
     {0x1220, "Jright", TF_NONE},
     {0x122E, "Fire", TF_NONE},
     {0x123A, "True", TF_NONE},
+    {0x123E, "True", TF_NONE},          /* Pro */
     {0x1244, "False", TF_NONE},
+    {0x1248, "False", TF_NONE},          /* Pro */
     {0x1250, "Put Key ", TF_NONE},
     {0x125E, "Scancode", TF_NONE},
+    {0x1262, "Scancode", TF_NONE},          /* Pro */
     {0x126C, "Scanshift", TF_NONE},
     {0x1280, "Clear Key", TF_NONE},      /* Pro */
     {0x127C, "Clear Key", TF_NONE},
@@ -445,10 +513,13 @@ static const struct {
     {0x1374, "Locate ", TF_NONE},
     {0x1384, "Clw", TF_NONE},
     {0x138E, "Home", TF_NONE},
+    {0x1392, "Home", TF_NONE},               /* Pro */
     {0x1398, "Curs Pen ", TF_NONE},
+    {0x139C, "Curs Pen ", TF_NONE},          /* Pro */
     {0x13A8, "Pen$", TF_NONE},
     {0x13B4, "Paper$", TF_NONE},
     {0x13C2, "At", TF_NONE},
+    {0x13C6, "At", TF_NONE},                 /* Pro */
     {0x13CE, "Pen ", TF_NONE},
     {0x13D2, "Pen ", TF_NONE},            /* Pro */
     {0x13D8, "Paper ", TF_NONE},
@@ -456,43 +527,62 @@ static const struct {
     {0x13E4, "Centre ", TF_NONE},
     {0x13F2, "Border ", TF_NONE},
     {0x1404, "Writing ", TF_NONE},
+    {0x1408, "Writing ", TF_NONE},           /* Pro */
     {0x141E, "Title Top ", TF_NONE},
     {0x142E, "Title Bottom ", TF_NONE},
     {0x1442, "Curs Off", TF_NONE},
     {0x1446, "Curs Off", TF_NONE},        /* Pro */
     {0x1450, "Curs On", TF_NONE},
+    {0x1454, "Curs On", TF_NONE},            /* Pro */
     {0x145E, "Inverse Off", TF_NONE},
+    {0x1462, "Inverse Off", TF_NONE},          /* Pro */
     {0x1470, "Inverse On", TF_NONE},
+    {0x1474, "Inverse On", TF_NONE},         /* Pro */
     {0x1480, "Under Off", TF_NONE},
+    {0x1484, "Under Off", TF_NONE},          /* Pro */
     {0x1490, "Under On", TF_NONE},
+    {0x1494, "Under On", TF_NONE},           /* Pro */
     {0x149E, "Shade Off", TF_NONE},
+    {0x14A2, "Shade Off", TF_NONE},          /* Pro */
     {0x14AE, "Shade On", TF_NONE},
+    {0x14B2, "Shade On", TF_NONE},          /* Pro */
     {0x14BC, "Scroll Off", TF_NONE},
     {0x14CC, "Scroll On", TF_NONE},
     {0x14DC, "Scroll ", TF_NONE},
     {0x14EA, "Cup$", TF_NONE},
     {0x14F4, "Cdown$", TF_NONE},
     {0x1500, "Cleft$", TF_NONE},
+    {0x1504, "Cleft$", TF_NONE},          /* Pro */
     {0x150C, "Cright$", TF_NONE},
     {0x151A, "Cup", TF_NONE},
+    {0x151E, "Cup", TF_NONE},                /* Pro */
     {0x1524, "Cdown", TF_NONE},
     {0x1530, "Cleft", TF_NONE},
+    {0x1534, "Cleft", TF_NONE},          /* Pro */
     {0x153C, "Cright", TF_NONE},
+    {0x1540, "Cright", TF_NONE},          /* Pro */
     {0x1548, "Memorize X", TF_NONE},
+    {0x154C, "Memorize X", TF_NONE},         /* Pro */
     {0x1558, "Memorize Y", TF_NONE},
+    {0x155C, "Memorize Y", TF_NONE},         /* Pro */
     {0x1568, "Cmove$", TF_NONE},
     {0x1578, "Cmove ", TF_NONE},
+    {0x157C, "Cmove ", TF_NONE},             /* Pro */
     {0x1586, "Cline", TF_NONE},
     {0x159A, "Hscroll ", TF_NONE},
+    {0x159E, "Hscroll ", TF_NONE},          /* Pro */
     {0x15A8, "Vscroll ", TF_NONE},
     {0x15B6, "Set Tab ", TF_NONE},
+    {0x15BA, "Set Tab ", TF_NONE},           /* Pro */
     {0x15C4, "Set Curs ", TF_NONE},
+    {0x15C8, "Set Curs ", TF_NONE},          /* Pro */
     {0x15E2, "X Curs", TF_NONE},
     {0x15EE, "Y Curs", TF_NONE},
     {0x15FA, "X Graphic", TF_NONE},
     {0x160A, "Y Graphic", TF_NONE},
     {0x161A, "Xgr", TF_NONE},
     {0x1624, "Ygr", TF_NONE},
+    {0x1628, "Ygr", TF_NONE},          /* Pro */
     {0x162E, "Reserve Zone", TF_NONE},
     {0x164A, "Reset Zone", TF_NONE},
     {0x1664, "Set Zone ", TF_NONE},
@@ -501,14 +591,19 @@ static const struct {
     {0x16B2, "Scin", TF_NONE},
     {0x16CC, "Mouse Screen", TF_NONE},
     {0x16DE, "Mouse Zone", TF_NONE},
+    {0x16E2, "Mouse Zone", TF_NONE},         /* Pro */
     {0x16EE, "Set Input ", TF_NONE},
     {0x16F2, "Set Input ", TF_NONE},      /* Pro */
     {0x1700, "Close Workbench", TF_NONE},
     {0x1716, "Close Editor", TF_NONE},
     {0x1728, "Dir First$", TF_NONE},
+    {0x172C, "Dir First$", TF_NONE},          /* Pro */
     {0x173A, "Dir Next$", TF_NONE},
+    {0x173E, "Dir Next$", TF_NONE},          /* Pro */
     {0x174A, "Exist", TF_NONE},
+    {0x174E, "Exist", TF_NONE},          /* Pro */
     {0x1756, "Dir$", TF_NONE},
+    {0x175A, "Dir$", TF_NONE},          /* Pro */
     {0x178C, "Ldir", TF_NONE},
     {0x17A0, "Dir ", TF_NONE},
     {0x17B2, "Set Dir ", TF_NONE},
@@ -527,11 +622,13 @@ static const struct {
     {0x188C, "Pof", TF_NONE},
     {0x1898, "Port", TF_NONE},
     {0x18A4, "Open Random ", TF_NONE},
+    {0x18A8, "Open Random ", TF_NONE},          /* Pro */
     {0x18B8, "Open In ", TF_NONE},
     {0x18BC, "Open In ", TF_NONE},        /* Pro */
     {0x18C8, "Open Out ", TF_NONE},
     {0x18CC, "Open Out ", TF_NONE},       /* Pro */
     {0x18DA, "Open Port ", TF_NONE},
+    {0x18DE, "Open Port ", TF_NONE},          /* Pro */
     {0x18EC, "Append ", TF_NONE},
     {0x18FC, "Close ", TF_NONE},
     {0x1900, "Close ", TF_NONE},          /* Pro */
@@ -540,7 +637,9 @@ static const struct {
     {0x192C, "Kill ", TF_NONE},
     {0x1938, "Drive", TF_NONE},
     {0x1944, "Field ", TF_NONE},
+    {0x1948, "Field ", TF_NONE},          /* Pro */
     {0x1950, "Fsel$", TF_NONE},
+    {0x1954, "Fsel$", TF_NONE},          /* Pro */
 
     /* ── Sprites & Bobs ─────────────────────────────────────────── */
     {0x1982, "Set Sprite Buffer ", TF_NONE},
@@ -554,9 +653,12 @@ static const struct {
     {0x1A4C, "Set Hardcol ", TF_NONE},
     {0x1A60, "Hardcol", TF_NONE},
     {0x1A6E, "Sprite Base", TF_NONE},
+    {0x1A72, "Sprite Base", TF_NONE},          /* Pro */
     {0x1A80, "Icon Base", TF_NONE},
+    {0x1A84, "Icon Base", TF_NONE},          /* Pro */
     {0x1A90, "Sprite ", TF_NONE},
     {0x1AA4, "Bob Off", TF_NONE},
+    {0x1AA8, "Bob Off", TF_NONE},          /* Pro */
     {0x1ABA, "Bob Update Off", TF_NONE},
     {0x1ACE, "Bob Update On", TF_NONE},
     {0x1AE2, "Bob Update", TF_NONE},
@@ -564,13 +666,16 @@ static const struct {
     {0x1B02, "Bob Draw", TF_NONE},
     {0x1B10, "Bobsprite Col", TF_NONE},
     {0x1B32, "Bob Col", TF_NONE},
+    {0x1B36, "Bob Col", TF_NONE},          /* Pro */
     {0x1B4E, "Col", TF_NONE},
     {0x1B58, "Limit Bob", TF_NONE},
     {0x1B86, "Set Bob ", TF_NONE},
     {0x1B9A, "Bob ", TF_NONE},
     {0x1BAA, "Get Sprite Palette", TF_NONE},
     {0x1BCC, "Get Sprite ", TF_NONE},
+    {0x1BD0, "Get Sprite ", TF_NONE},          /* Pro */
     {0x1BF8, "Get Bob ", TF_NONE},
+    {0x1BFC, "Get Bob ", TF_NONE},          /* Pro */
     {0x1C22, "Del Sprite ", TF_NONE},
     {0x1C3E, "Del Bob ", TF_NONE},
     {0x1C58, "Del Icon ", TF_NONE},
@@ -579,6 +684,7 @@ static const struct {
     {0x1C92, "Ins Icon ", TF_NONE},
     {0x1CA2, "Get Icon Palette", TF_NONE},
     {0x1CC2, "Get Icon ", TF_NONE},
+    {0x1CC6, "Get Icon ", TF_NONE},          /* Pro */
     {0x1CEC, "Put Bob ", TF_NONE},
     {0x1CFA, "Paste Bob ", TF_NONE},
     {0x1D0E, "Paste Icon ", TF_NONE},
@@ -587,15 +693,19 @@ static const struct {
     {0x1D52, "Make Icon Mask", TF_NONE},
     {0x1D70, "No Icon Mask", TF_NONE},
     {0x1D8C, "Hot Spot ", TF_NONE},
+    {0x1D90, "Hot Spot ", TF_NONE},          /* Pro */
     {0x1DAA, "Priority On", TF_NONE},
     {0x1DBC, "Priority Off", TF_NONE},
     {0x1DCE, "Hide On", TF_NONE},
     {0x1DDC, "Hide", TF_NONE},
     {0x1DE6, "Show On", TF_NONE},
     {0x1DF4, "Show", TF_NONE},
+    {0x1DF8, "Show", TF_NONE},          /* Pro */
     {0x1DFE, "Change Mouse ", TF_NONE},
+    {0x1E02, "Change Mouse ", TF_NONE},          /* Pro */
     {0x1E12, "X Mouse", TF_NONE},
     {0x1E20, "Y Mouse", TF_NONE},
+    {0x1E24, "Y Mouse", TF_NONE},          /* Pro */
     {0x1E2E, "Mouse Key", TF_NONE},
     {0x1E3E, "Mouse Click", TF_NONE},
     {0x1E50, "Limit Mouse", TF_NONE},
@@ -613,12 +723,14 @@ static const struct {
     {0x1F74, "Chanan", TF_NONE},
     {0x1F82, "Chanmv", TF_NONE},
     {0x1F90, "Channel ", TF_NONE},
+    {0x1F94, "Channel ", TF_NONE},          /* Pro */
     {0x1F9E, "Amreg", TF_NONE},
     {0x1FB8, "Amal On", TF_NONE},
     {0x1FCE, "Amal Off", TF_NONE},
     {0x1FE6, "Amal Freeze", TF_NONE},
     {0x2000, "Amalerr", TF_NONE},
     {0x200E, "Amal ", TF_NONE},
+    {0x2012, "Amal ", TF_NONE},          /* Pro */
     {0x2028, "Amplay ", TF_NONE},
     {0x2046, "Synchro On", TF_NONE},
     {0x2056, "Synchro Off", TF_NONE},
@@ -628,17 +740,23 @@ static const struct {
     {0x2096, "Update Every ", TF_NONE},
     {0x20AA, "Update", TF_NONE},
     {0x20B6, "X Bob", TF_NONE},
+    {0x20BA, "X Bob", TF_NONE},          /* Pro */
     {0x20C2, "Y Bob", TF_NONE},
+    {0x20C6, "Y Bob", TF_NONE},          /* Pro */
     {0x20CE, "X Sprite", TF_NONE},
     {0x20DE, "Y Sprite", TF_NONE},
+    {0x20E2, "Y Sprite", TF_NONE},          /* Pro */
     {0x20EE, "Reserve As Work ", TF_NONE},
     {0x2106, "Reserve As Chip Work ", TF_NONE},
+    {0x210A, "Reserve As Chip Work ", TF_NONE},          /* Pro */
     {0x2124, "Reserve As Data ", TF_NONE},
     {0x213C, "Reserve As Chip Data ", TF_NONE},
     {0x215A, "Erase ", TF_NONE},
     {0x2166, "List Bank", TF_NONE},
     {0x2176, "Chip Free", TF_NONE},
+    {0x217A, "Chip Free", TF_NONE},          /* Pro */
     {0x2186, "Fast Free", TF_NONE},
+    {0x218A, "Fast Free", TF_NONE},          /* Pro */
     {0x2196, "Fill ", TF_NONE},
     {0x21A6, "Copy ", TF_NONE},
     {0x21B6, "Hunt", TF_NONE},
@@ -648,9 +766,12 @@ static const struct {
     {0x21EE, "Deek", TF_NONE},
     {0x21FA, "Leek", TF_NONE},
     {0x2206, "Bset ", TF_NONE},
+    {0x220A, "Bset ", TF_NONE},          /* Pro */
     {0x2214, "Bclr ", TF_NONE},
+    {0x2218, "Bclr ", TF_NONE},          /* Pro */
     {0x2222, "Bchg ", TF_NONE},
     {0x2230, "Btst", TF_NONE},
+    {0x2234, "Btst", TF_NONE},          /* Pro */
     {0x223E, "Ror.b ", TF_NONE},
     {0x224C, "Ror.w ", TF_NONE},
     {0x225A, "Ror.l ", TF_NONE},
@@ -661,12 +782,18 @@ static const struct {
     {0x229E, "Dreg", TF_NONE},
     {0x22A2, "Dreg", TF_NONE},            /* Pro */
     {0x22AA, "Copper On", TF_NONE},
+    {0x22AE, "Copper On", TF_NONE},          /* Pro */
     {0x22BA, "Copper Off", TF_NONE},
+    {0x22BE, "Copper Off", TF_NONE},          /* Pro */
     {0x22CA, "Cop Swap", TF_NONE},
+    {0x22CE, "Cop Swap", TF_NONE},          /* Pro */
     {0x22D8, "Cop Reset", TF_NONE},
     {0x22E8, "Cop Wait ", TF_NONE},
+    {0x22EC, "Cop Wait ", TF_NONE},          /* Pro */
     {0x2308, "Cop Movel ", TF_NONE},
+    {0x230C, "Cop Movel ", TF_NONE},          /* Pro */
     {0x231A, "Cop Move ", TF_NONE},
+    {0x231E, "Cop Move ", TF_NONE},          /* Pro */
     {0x232C, "Cop Logic", TF_NONE},
     {0x233C, "Prg First$", TF_NONE},
     {0x234E, "Prg Next$", TF_NONE},
@@ -674,7 +801,9 @@ static const struct {
     {0x2390, "Prun ", TF_NONE},
     {0x239C, "Bgrab ", TF_NONE},
     {0x23A8, "Put ", TF_NONE},
+    {0x23AC, "Put ", TF_NONE},          /* Pro */
     {0x23B4, "Get ", TF_NONE},
+    {0x23B8, "Get ", TF_NONE},          /* Pro */
     {0x23C0, "System", TF_NONE},
     {0x23CC, "Multi Wait", TF_NONE},
     {0x23DC, "I Bob", TF_NONE},
@@ -682,14 +811,19 @@ static const struct {
     {0x23F8, "Priority Reverse On", TF_NONE},
     {0x2412, "Priority Reverse Off", TF_NONE},
     {0x242C, "Dev First$", TF_NONE},
+    {0x2430, "Dev First$", TF_NONE},          /* Pro */
     {0x243E, "Dev Next$", TF_NONE},
+    {0x2442, "Dev Next$", TF_NONE},          /* Pro */
     {0x244E, "Hrev Block ", TF_NONE},
     {0x2460, "Vrev Block ", TF_NONE},
     {0x2472, "Hrev", TF_NONE},
+    {0x2476, "Hrev", TF_NONE},          /* Pro */
     {0x247E, "Vrev", TF_NONE},
     {0x248A, "Rev", TF_NONE},
     {0x2494, "Bank Swap ", TF_NONE},
+    {0x2498, "Bank Swap ", TF_NONE},          /* Pro */
     {0x24A6, "Amos To Front", TF_NONE},
+    {0x24AA, "Amos To Front", TF_NONE},          /* Pro */
     {0x24BA, "Amos To Back", TF_NONE},
     {0x24CC, "Amos Here", TF_NONE},
     {0x24DC, "Amos Lock", TF_NONE},
@@ -700,6 +834,7 @@ static const struct {
     {0x2528, "Prg State", TF_NONE},
     {0x2538, "Command Line$", TF_NONE},
     {0x254C, "Disc Info$", TF_NONE},
+    {0x2550, "Disc Info$", TF_NONE},          /* Pro */
 
     /* ── AMOS Pro Specific Tokens ───────────────────────────────── */
     /* These are Pro-only tokens observed in actual .AMOS files */
@@ -797,6 +932,14 @@ static const struct {
     {0x2962, "Errtrap", TF_NONE},       /* Pro */
     {0x2A40, "", TF_NONE},              /* Pro accessor call */
     {0x2AB0, "", TF_NONE},              /* Pro accessor call */
+    {0x2AC0, "' Pro_Ext ", TF_NONE},    /* Pro extension tokens */
+    {0x2AD2, "' Pro_Ext ", TF_NONE},
+    {0x2AE4, "' Pro_Ext ", TF_NONE},
+    {0x2AF6, "' Pro_Ext ", TF_NONE},
+    {0x2B02, "' Pro_Ext ", TF_NONE},
+    {0x2B10, "' Pro_Ext ", TF_NONE},
+    {0x2B20, "' Pro_Ext ", TF_NONE},
+    {0x2B3E, "' Pro_Ext ", TF_NONE},
 
     /* Sentinel */
     {0x0000, NULL, TF_NONE},

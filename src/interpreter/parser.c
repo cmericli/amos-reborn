@@ -478,6 +478,7 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         }
 
         /* Shared — no-op until scoping is implemented (all vars are global) */
+        case TOK_GLOBAL:  /* Global works like Shared — marks vars as global scope */
         case TOK_SHARED: {
             amos_node_t *n = alloc_node(NODE_COMMAND, tok->line);
             n->token.type = TOK_SHARED;

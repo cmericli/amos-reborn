@@ -514,6 +514,12 @@ static eval_result_t eval_function(amos_state_t *state, amos_node_t *node)
     else if (strcasecmp(name, "Erl") == 0) {
         result = make_int(state->last_error_line);
     }
+    else if (strcasecmp(name, "Hires") == 0) {
+        result = make_int(0x8000);  /* BPLCON0 hires bit */
+    }
+    else if (strcasecmp(name, "Lowres") == 0) {
+        result = make_int(0);
+    }
     else if (strcasecmp(name, "Err$") == 0) {
         int err_num = argc > 0 ? to_int(args[0]) : state->last_error;
         result = make_string(amos_get_error_message(err_num));

@@ -1,0 +1,7 @@
+Screen Open 0,320,256,4
+Cls 0
+Ink 2
+Bar 10,10 To 100,100
+Ink 3
+Draw 0,0 To 319,255
+Print "Hello Oracle"
