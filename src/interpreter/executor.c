@@ -1136,9 +1136,16 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                 if (!is_true) {
                     /* Skip to matching Else or End If */
                     int target = scan_to_else_or_endif(state, state->current_line);
-                    state->current_line = target;
-                    /* If we landed on Else, the next step will execute it and
-                       continue into the else body. If End If, it's a no-op. */
+                    if (target < state->line_count &&
+                        state->lines[target].ast &&
+                        state->lines[target].ast->type == NODE_COMMAND &&
+                        state->lines[target].ast->token.type == TOK_ELSE) {
+                        /* Landed on Else — skip past it into the else body */
+                        state->current_line = target + 1;
+                    } else {
+                        /* Landed on End If — skip past it */
+                        state->current_line = target;
+                    }
                 }
                 /* If true, just continue to next line (the body) */
             }
@@ -1286,7 +1293,7 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                         if ((ln->type == NODE_COMMAND &&
                              (ln->token.type == TOK_LOOP || ln->token.type == TOK_WEND ||
                               ln->token.type == TOK_NEXT)) ||
-                            ln->type == NODE_COMMAND && ln->token.type == TOK_UNTIL) {
+                            (ln->type == NODE_COMMAND && ln->token.type == TOK_UNTIL)) {
                             state->current_line = i + 1;
                             return;
                         }
@@ -1319,7 +1326,7 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                                 if ((ln->type == NODE_COMMAND &&
                                      (ln->token.type == TOK_LOOP || ln->token.type == TOK_WEND ||
                                       ln->token.type == TOK_NEXT)) ||
-                                    ln->type == NODE_COMMAND && ln->token.type == TOK_UNTIL) {
+                                    (ln->type == NODE_COMMAND && ln->token.type == TOK_UNTIL)) {
                                     state->current_line = i + 1;
                                     return;
                                 }
@@ -1511,17 +1518,21 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
 
                 case TOK_SCREEN_OPEN: {
                     /* Screen Open id, w, h, colors[, mode]
-                     * AMOS takes color count, not depth. Convert to bitplanes. */
+                     * AMOS takes color count, not depth. Convert to bitplanes.
+                     * Mode bits: $8000=Hires, $0004=Interlace, $0800=HAM */
                     int args[5] = {0, 320, 256, 32, 0};
                     for (int i = 0; i < node->child_count && i < 5; i++) {
                         eval_result_t r = eval_node(state, node->children[i]);
                         args[i] = to_int(r);
                         free_result(&r);
                     }
-                    /* Validate width: multiple of 16, range 16-1008 */
+                    int mode = args[4];
+                    bool is_hires = (mode & 0x8000) != 0;
+                    /* Validate width: multiple of 16 */
                     int w = (args[1] + 15) & ~15;
                     if (w < 16) w = 16;
-                    if (w > 1008) w = 1008;
+                    int max_w = is_hires ? 1280 : 1008;
+                    if (w > max_w) w = max_w;
                     /* Validate height: range 1-1023 */
                     int h = args[2];
                     if (h < 1) h = 1;
@@ -1536,7 +1547,16 @@ void amos_execute_node(amos_state_t *state, amos_node_t *node)
                     else if (colors <= 32)  depth = 5;
                     else if (colors <= 64)  depth = 6;
                     else depth = 5;
-                    amos_screen_open(state, args[0], w, h, depth);
+                    int sid = args[0];
+                    amos_screen_open(state, sid, w, h, depth);
+                    /* Store mode flags on the screen */
+                    if (sid >= 0 && sid < AMOS_MAX_SCREENS &&
+                        state->screens[sid].active) {
+                        state->screens[sid].mode_flags = mode;
+                        state->screens[sid].hires = is_hires;
+                        state->screens[sid].interlace = (mode & 0x0004) != 0;
+                        state->screens[sid].ham = (mode & 0x0800) != 0;
+                    }
                     break;
                 }
 

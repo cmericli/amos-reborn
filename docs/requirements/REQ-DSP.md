@@ -250,7 +250,7 @@ REQ-DSP-030: Screen Open Mode Hires — Bit 15 ($8000) enables hires mode (640px
   Acceptance: Screen Open 0,640,256,4,$8000 succeeds; circle x-radius is doubled in hires
   Level: 2 (subsystem)
   Source: Blueprint S3 "Screen Open"
-  Status: TODO — no mode parameter handling
+  Status: IMPLEMENTED — mode bits parsed and stored on screen struct
 ```
 
 ```
@@ -534,10 +534,10 @@ REQ-DSP-062: Screen Swap — Screen Swap exchanges Logic and Physic pointers
 
 ### Key Gaps
 
-1. **Screen Open validation** (REQ-DSP-021..023): No width alignment, range, or height range checks
-2. **Color-to-plane mapping** (REQ-DSP-024..029): Depth passed raw, no colors-to-planes conversion
-3. **Mode bits** (REQ-DSP-030..032): Hires, interlace, HAM modes not parsed or stored
-4. **Max screens** (REQ-DSP-002): Implementation has 8, blueprint specifies 12
+1. ~~**Screen Open validation** (REQ-DSP-021..023)~~: DONE — width alignment, range, height range checks
+2. ~~**Color-to-plane mapping** (REQ-DSP-024..029)~~: DONE — colors-to-planes conversion in executor
+3. ~~**Mode bits** (REQ-DSP-030..032)~~: DONE — Hires, interlace, HAM modes parsed and stored
+4. ~~**Max screens** (REQ-DSP-002)~~: DONE — 12 screens
 5. **Sprite multiplexing** (REQ-DSP-045..049): No hardware channel emulation, Y-sorting, or triple buffering
 6. **Bob engine** (REQ-DSP-051..054): No save/restore cycle, no Y-sort, no flip table
 7. **Copper/Rainbow** (REQ-DSP-057..060): Entire subsystems not yet implemented

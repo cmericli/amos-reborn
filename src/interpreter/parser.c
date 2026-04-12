@@ -138,7 +138,7 @@ static amos_node_t *parse_if(amos_token_t *tokens, int *pos, int count)
     match(tokens, pos, count, TOK_THEN);
 
     /* Then-branch: parse statements until Else/End If/newline */
-    amos_node_t *then_body = alloc_node(NODE_LINE, tokens[*pos].line);
+    amos_node_t *then_body = alloc_node(NODE_LINE, node->token.line);
     while (!at_end(tokens, *pos, count) &&
            !peek_is(tokens, *pos, count, TOK_ELSE) &&
            !peek_is(tokens, *pos, count, TOK_END_IF)) {
@@ -147,11 +147,17 @@ static amos_node_t *parse_if(amos_token_t *tokens, int *pos, int count)
         if (peek_is(tokens, *pos, count, TOK_COLON)) (*pos)++;
         else break;
     }
-    add_child(node, then_body);
+    /* Only add then_body if it has statements (single-line If).
+     * If empty, this is a multi-line If — body spans subsequent lines. */
+    if (then_body->child_count > 0) {
+        add_child(node, then_body);
+    } else {
+        free(then_body);  /* No statements on this line */
+    }
 
-    /* ELSE branch */
+    /* ELSE branch (single-line form: If X=1 Then A=1 Else A=2) */
     if (match(tokens, pos, count, TOK_ELSE)) {
-        amos_node_t *else_body = alloc_node(NODE_LINE, tokens[*pos].line);
+        amos_node_t *else_body = alloc_node(NODE_LINE, tokens[*pos - 1].line);
         while (!at_end(tokens, *pos, count) &&
                !peek_is(tokens, *pos, count, TOK_END_IF)) {
             amos_node_t *stmt = amos_parse_line(tokens, pos, count);
@@ -699,6 +705,7 @@ amos_node_t *amos_parse_line(amos_token_t *tokens, int *pos, int count)
         case TOK_CLEFT:
         case TOK_CRIGHT:
         case TOK_SET_PAINT:
+        case TOK_SET_SPRITE_BUFFER:
         case TOK_APPEAR:
         case TOK_CLINE:
         case TOK_CLW:

@@ -243,6 +243,7 @@ static const struct {
     {0x04E8, "Run ", TF_NONE},
     {0x04F6, "Run ", TF_NONE},          /* Pro variant (confirmed in Font8x8) */
     {0x04FA, "Set Buffer ", TF_NONE},
+    {0x04FE, "Set Buffer ", TF_NONE},    /* Pro */
     {0x050A, "Mid$", TF_NONE},
     {0x0524, "Left$", TF_NONE},
     {0x0528, "Left$", TF_NONE},         /* Pro */
@@ -289,6 +290,7 @@ static const struct {
     {0x067A, "Direct", TF_NONE},          /* Pro Direct */
     {0x0682, "Rnd", TF_NONE},
     {0x068C, "Randomize ", TF_NONE},
+    {0x0690, "Randomize ", TF_NONE},     /* Pro */
     {0x069C, "Sgn", TF_NONE},
     {0x06A0, "Sgn", TF_NONE},          /* Pro */
     {0x06A6, "Abs", TF_NONE},
@@ -414,6 +416,7 @@ static const struct {
     {0x0D40, "Flash ", TF_NONE},
     {0x0D44, "Flash ", TF_NONE},          /* Pro */
     {0x0D4E, "Shift Off", TF_NONE},
+    {0x0D52, "Shift Off", TF_NONE},      /* Pro */
     {0x0D5E, "Shift Up ", TF_NONE},
     {0x0D74, "Shift Down ", TF_NONE},
     {0x0D78, "Shift Down ", TF_NONE},          /* Pro */
@@ -499,6 +502,7 @@ static const struct {
     {0x1280, "Clear Key", TF_NONE},      /* Pro */
     {0x127C, "Clear Key", TF_NONE},
     {0x128C, "Wait Key", TF_NONE},
+    {0x1290, "Wait Key", TF_NONE},        /* Pro */
     {0x129A, "Wait ", TF_NONE},
     {0x12A6, "Key$", TF_NONE},
     {0x12B2, "Scan$", TF_NONE},
@@ -596,6 +600,7 @@ static const struct {
     {0x16F2, "Set Input ", TF_NONE},      /* Pro */
     {0x1700, "Close Workbench", TF_NONE},
     {0x1716, "Close Editor", TF_NONE},
+    {0x171A, "Close Editor", TF_NONE},    /* Pro */
     {0x1728, "Dir First$", TF_NONE},
     {0x172C, "Dir First$", TF_NONE},          /* Pro */
     {0x173A, "Dir Next$", TF_NONE},
@@ -643,6 +648,7 @@ static const struct {
 
     /* ── Sprites & Bobs ─────────────────────────────────────────── */
     {0x1982, "Set Sprite Buffer ", TF_NONE},
+    {0x1986, "Set Sprite Buffer ", TF_NONE}, /* Pro */
     {0x199A, "Sprite Off", TF_NONE},
     {0x19B4, "Sprite Priority ", TF_NONE},
     {0x19CA, "Sprite Update Off", TF_NONE},
@@ -697,6 +703,7 @@ static const struct {
     {0x1DAA, "Priority On", TF_NONE},
     {0x1DBC, "Priority Off", TF_NONE},
     {0x1DCE, "Hide On", TF_NONE},
+    {0x1DD2, "Hide On", TF_NONE},         /* Pro */
     {0x1DDC, "Hide", TF_NONE},
     {0x1DE6, "Show On", TF_NONE},
     {0x1DF4, "Show", TF_NONE},
@@ -928,6 +935,7 @@ static const struct {
     {0x26D8, "", TF_NONE},              /* Pro accessor */
     {0x2704, "", TF_NONE},              /* Pro accessor */
     {0x2750, "", TF_NONE},              /* Pro accessor */
+    {0x28CA, "' [Pro_Editor_Ext] ", TF_NONE}, /* Pro editor extension (unknown) */
     {0x28EE, "", TF_NONE},              /* Pro accessor */
     {0x2962, "Errtrap", TF_NONE},       /* Pro */
     {0x2A40, "", TF_NONE},              /* Pro accessor call */

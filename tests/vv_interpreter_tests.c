@@ -852,6 +852,51 @@ VV_TEST("REQ-INT-020e: Multiple shared variables on separate lines") {
     vv_destroy(s);
 }
 
+VV_TEST("REQ-INT-020g: Bare procedure call (no Proc keyword)") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "BUMP\n"
+        "End\n"
+        "Procedure BUMP\n"
+        "Shared X\n"
+        "X=X+1\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "X", 1);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020h: Bare procedure call with arguments") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=0\n"
+        "ADDER[3,4]\n"
+        "End\n"
+        "Procedure ADDER[A,B]\n"
+        "Shared X\n"
+        "X=A+B\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "X", 7);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-020i: Bare procedure call with space-separated args") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "R=0\n"
+        "DOUBLE 5\n"
+        "End\n"
+        "Procedure DOUBLE[N]\n"
+        "Shared R\n"
+        "R=N*2\n"
+        "End Proc\n"
+    );
+    VV_ASSERT_INT(s, "R", 10);
+    vv_destroy(s);
+}
+
 VV_TEST("REQ-INT-041: Modulo operator") {
     amos_state_t *s = vv_create();
     vv_run(s, "X=17 Mod 5");
@@ -1205,5 +1250,132 @@ VV_TEST("REQ-STR-011: Flip$ function reverses string") {
     amos_state_t *s = vv_create();
     vv_run(s, "A$=Flip$(\"Hello\")");
     VV_ASSERT_STR(s, "A$", "olleH");
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Select/Case (REQ-INT-080 through 084)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-080: Select/Case basic dispatch") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=2\n"
+        "Select X\n"
+        "Case 1\n"
+        "R$=\"one\"\n"
+        "Case 2\n"
+        "R$=\"two\"\n"
+        "Case 3\n"
+        "R$=\"three\"\n"
+        "End Select\n"
+    );
+    VV_ASSERT_STR(s, "R$", "two");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-081: Select/Case with Default") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=99\n"
+        "Select X\n"
+        "Case 1\n"
+        "R$=\"one\"\n"
+        "Case 2\n"
+        "R$=\"two\"\n"
+        "Default\n"
+        "R$=\"other\"\n"
+        "End Select\n"
+    );
+    VV_ASSERT_STR(s, "R$", "other");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-082: Select/Case first match wins") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=1\n"
+        "Select X\n"
+        "Case 1\n"
+        "R=10\n"
+        "Case 1\n"
+        "R=20\n"
+        "End Select\n"
+    );
+    VV_ASSERT_INT(s, "R", 10);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-083: Select/Case no match and no Default") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "R=0\n"
+        "X=5\n"
+        "Select X\n"
+        "Case 1\n"
+        "R=1\n"
+        "Case 2\n"
+        "R=2\n"
+        "End Select\n"
+    );
+    VV_ASSERT_INT(s, "R", 0);
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ *  Multi-line If/Else/End If (REQ-INT-085 through 088)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-INT-085: Multi-line If/End If true branch") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=1\n"
+        "If X=1\n"
+        "R=10\n"
+        "End If\n"
+    );
+    VV_ASSERT_INT(s, "R", 10);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-086: Multi-line If/End If false branch skips") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "R=0\n"
+        "X=2\n"
+        "If X=1\n"
+        "R=10\n"
+        "End If\n"
+    );
+    VV_ASSERT_INT(s, "R", 0);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-087: Multi-line If/Else/End If") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=2\n"
+        "If X=1\n"
+        "R=10\n"
+        "Else\n"
+        "R=20\n"
+        "End If\n"
+    );
+    VV_ASSERT_INT(s, "R", 20);
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-INT-088: Nested multi-line If") {
+    amos_state_t *s = vv_create();
+    vv_run(s,
+        "X=2\n"
+        "Y=3\n"
+        "If X=2\n"
+        "If Y=3\n"
+        "R=99\n"
+        "End If\n"
+        "End If\n"
+    );
+    VV_ASSERT_INT(s, "R", 99);
     vv_destroy(s);
 }

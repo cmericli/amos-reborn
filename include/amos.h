@@ -451,6 +451,12 @@ typedef struct {
     int outline_color;          /* border color */
     int writing_mode;           /* graphics writing mode (replace, or, xor, and) */
 
+    /* Mode flags from Screen Open */
+    int mode_flags;             /* raw mode bits from Screen Open */
+    bool hires;                 /* $8000: 640px mode */
+    bool interlace;             /* $0004: interlaced */
+    bool ham;                   /* $0800: HAM mode */
+
     /* Double buffering */
     uint32_t *back_buffer;
     bool double_buffered;

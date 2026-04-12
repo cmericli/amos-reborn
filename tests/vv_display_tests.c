@@ -227,6 +227,61 @@ VV_TEST("REQ-DSP-034: New screen gets default palette") {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
+ *  Screen Open Mode Bits (REQ-DSP-030 through 032)
+ * ══════════════════════════════════════════════════════════════════════ */
+
+VV_TEST("REQ-DSP-030: Screen Open with Hires mode sets hires flag") {
+    amos_state_t *s = vv_create();
+    /* Screen Open 1,640,200,16,Hires  where Hires=$8000 */
+    vv_run(s, "Screen Open 1,640,200,16,$8000");
+    amos_screen_t *scr = &s->screens[1];
+    VV_ASSERT(scr->active, "screen 1 should be active");
+    VV_ASSERT(scr->hires == true, "hires flag should be set");
+    VV_ASSERT(scr->width == 640, "width should be 640");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-031: Screen Open with Interlace mode sets flag") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,512,16,$0004");
+    amos_screen_t *scr = &s->screens[1];
+    VV_ASSERT(scr->active, "screen 1 should be active");
+    VV_ASSERT(scr->interlace == true, "interlace flag should be set");
+    VV_ASSERT(scr->height == 512, "height should be 512");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-032a: Screen Open without mode flags defaults to lowres") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,320,256,16");
+    amos_screen_t *scr = &s->screens[1];
+    VV_ASSERT(scr->active, "screen 1 should be active");
+    VV_ASSERT(scr->hires == false, "hires flag should not be set");
+    VV_ASSERT(scr->interlace == false, "interlace should not be set");
+    VV_ASSERT(scr->ham == false, "ham should not be set");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-030a: Screen Open with Hires constant") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,640,200,16,Hires");
+    amos_screen_t *scr = &s->screens[1];
+    VV_ASSERT(scr->active, "screen 1 should be active");
+    VV_ASSERT(scr->hires == true, "hires flag should be set via Hires constant");
+    VV_ASSERT(scr->width == 640, "width should be 640");
+    vv_destroy(s);
+}
+
+VV_TEST("REQ-DSP-032b: Hires mode allows width up to 1280") {
+    amos_state_t *s = vv_create();
+    vv_run(s, "Screen Open 1,1280,200,4,$8000");
+    amos_screen_t *scr = &s->screens[1];
+    VV_ASSERT(scr->active, "screen 1 should be active");
+    VV_ASSERT(scr->width == 1280, "hires width 1280 should be accepted");
+    vv_destroy(s);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
  *  Drawing Primitives (REQ-DSP-035 through 043)
  * ══════════════════════════════════════════════════════════════════════ */
 
